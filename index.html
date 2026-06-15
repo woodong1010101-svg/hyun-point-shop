@@ -5,28 +5,35 @@
     <title>현수학영어학원 포인트상점</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style> #toast-container { left: 50%; transform: translateX(-50%); } </style>
+    <style> 
+        #toast-container { left: 50%; transform: translateX(-50%); } 
+        .toast-large { font-size: 1.5rem !important; padding: 1.5rem 3rem !important; }
+    </style>
 </head>
 <body class="bg-slate-100 h-screen font-sans">
-    <div id="toast-container" class="fixed top-5 z-50 flex flex-col gap-2 items-center pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-10 z-50 flex flex-col gap-4 items-center pointer-events-none"></div>
 
     <div id="login-view" class="h-full flex items-center justify-center">
-        <div class="w-full max-w-sm bg-white p-6 rounded-3xl shadow-2xl border-t-8 border-blue-400">
-            <h1 id="admin-trigger" class="text-xl font-black text-center mb-6 cursor-pointer text-blue-800 select-none">🏪 현수학영어학원 포인트상점</h1>
-            <input id="code-input" readonly class="w-full text-center text-3xl font-bold border-4 border-blue-200 p-4 rounded-2xl mb-6 bg-blue-50" placeholder="번호 4자리">
-            <div class="grid grid-cols-3 gap-2">
-                <button onclick="keyInput('1')" class="p-4 bg-blue-50 rounded-xl font-bold">1</button>
-                <button onclick="keyInput('2')" class="p-4 bg-blue-50 rounded-xl font-bold">2</button>
-                <button onclick="keyInput('3')" class="p-4 bg-blue-50 rounded-xl font-bold">3</button>
-                <button onclick="keyInput('4')" class="p-4 bg-blue-50 rounded-xl font-bold">4</button>
-                <button onclick="keyInput('5')" class="p-4 bg-blue-50 rounded-xl font-bold">5</button>
-                <button onclick="keyInput('6')" class="p-4 bg-blue-50 rounded-xl font-bold">6</button>
-                <button onclick="keyInput('7')" class="p-4 bg-blue-50 rounded-xl font-bold">7</button>
-                <button onclick="keyInput('8')" class="p-4 bg-blue-50 rounded-xl font-bold">8</button>
-                <button onclick="keyInput('9')" class="p-4 bg-blue-50 rounded-xl font-bold">9</button>
-                <div></div><button onclick="keyInput('0')" class="p-4 bg-blue-50 rounded-xl font-bold">0</button>
-                <button onclick="keyInput('back')" class="p-4 bg-blue-200 rounded-xl font-bold">⌫</button>
+        <!-- 좌우 폭을 약 25% 늘리기 위해 max-w-[560px]로 조정 -->
+        <div class="w-full max-w-[560px] bg-white p-10 rounded-3xl shadow-2xl border-t-[14px] border-blue-400">
+            <h1 id="admin-trigger" class="text-2xl font-black text-center mb-8 cursor-pointer text-blue-800 select-none">🏪 현수학영어학원 포인트상점</h1>
+            <input id="code-input" readonly class="w-full text-center text-5xl font-bold border-8 border-blue-200 p-6 rounded-2xl mb-8 bg-blue-50" placeholder="번호 4자리">
+            
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <button onclick="keyInput('1')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">1</button>
+                <button onclick="keyInput('2')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">2</button>
+                <button onclick="keyInput('3')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">3</button>
+                <button onclick="keyInput('4')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">4</button>
+                <button onclick="keyInput('5')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">5</button>
+                <button onclick="keyInput('6')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">6</button>
+                <button onclick="keyInput('7')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">7</button>
+                <button onclick="keyInput('8')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">8</button>
+                <button onclick="keyInput('9')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">9</button>
+                <div></div><button onclick="keyInput('0')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">0</button>
+                <button onclick="keyInput('back')" class="p-6 bg-blue-200 rounded-2xl text-2xl font-bold">⌫</button>
             </div>
+            
+            <p class="text-center text-blue-900 text-xl font-black">출석번호 4자리를 입력하세요</p>
         </div>
     </div>
 
@@ -78,7 +85,8 @@
     <script>
         const sb = supabase.createClient("https://yuwadwblkldgynnrooyq.supabase.co", "sb_publishable_SvYObjjIPkNM1ZtDnFWVPg_cr_78qQB");
         let currentUser = null, cart = [], timerInterval, clickCount = 0;
-        function showToast(msg, color = 'bg-blue-600') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `${color} text-white px-6 py-3 rounded-full shadow-lg font-bold pointer-events-auto`; toast.innerText = msg; container.appendChild(toast); setTimeout(() => toast.remove(), 2000); }
+        
+        function showToast(msg, color = 'bg-blue-600') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `${color} text-white rounded-full shadow-lg font-bold pointer-events-auto toast-large`; toast.innerText = msg; container.appendChild(toast); setTimeout(() => toast.remove(), 2500); }
         
         async function loadAdminData() {
             const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true });
@@ -87,13 +95,33 @@
             
             document.getElementById('admin-student-list').innerHTML = students.map(s => `
                 <div class='border rounded-lg p-2 hover:bg-slate-50'>
-                    <div onclick="togglePanel('${s.code}')" class='cursor-pointer font-bold flex justify-between items-center'><span>초${s.grade} ${s.name} (${s.points}p)</span> <button onclick="confirmDel('students_point', '${s.code}')" class='text-red-500 text-xs font-bold'>제거</button></div>
+                    <div onclick="togglePanel('${s.code}')" class='cursor-pointer font-bold flex justify-between items-center'><span>초${s.grade} / ${s.name} / ${s.code} / ${s.points}p</span> <button onclick="confirmDel('students_point', '${s.code}')" class='text-red-500 text-xs font-bold'>제거</button></div>
                     <div id="panel-${s.code}" class='hidden p-3 bg-blue-50 rounded mt-2'>
                         <div class='grid grid-cols-3 gap-2 mb-3'>${pOpts.map(o => `<button onclick="updateTemp('${s.code}', ${o.v})" class='bg-white px-2 py-2 border rounded text-xs font-bold'>${o.l}</button>`).join('')}</div>
                         <div class='flex items-center gap-2'><span class='text-sm font-bold'>예정: <span id='temp-${s.code}'>0</span>p</span><button onclick="applyPoints('${s.code}', '${s.name}')" class='bg-blue-600 text-white px-6 py-2 rounded text-sm font-bold ml-auto'>최종 지급</button><button onclick="document.getElementById('temp-${s.code}').innerText='0'" class='text-gray-500 text-xs'>취소</button></div>
                     </div>
                 </div>`).join('');
-            document.getElementById('admin-product-list').innerHTML = products.map(p => `<div class='flex justify-between border-b p-1 items-center text-sm'><span>${p.name} (${p.price}p)</span><div class="flex gap-1"><button onclick="moveOrder('${p.id}', ${p.display_order || 0}, -1)" class="bg-gray-200 px-1 rounded">▲</button><button onclick="moveOrder('${p.id}', ${p.display_order || 0}, 1)" class="bg-gray-200 px-1 rounded">▼</button><button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs ml-2'>제거</button></div></div>`).join('');
+            
+            document.getElementById('admin-product-list').innerHTML = products.map((p, idx) => `
+                <div class='flex justify-between border-b p-1 items-center text-sm'>
+                    <span>${p.name} (${p.price}p)</span>
+                    <div class="flex gap-1">
+                        <button onclick="moveOrder(${idx}, -1)" class="bg-gray-200 px-2 rounded">▲</button>
+                        <button onclick="moveOrder(${idx}, 1)" class="bg-gray-200 px-2 rounded">▼</button>
+                        <button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs ml-2'>제거</button>
+                    </div>
+                </div>`).join('');
+        }
+        
+        async function moveOrder(currentIndex, direction) {
+            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true });
+            const targetIndex = currentIndex + direction;
+            if (targetIndex < 0 || targetIndex >= products.length) return;
+            const itemA = products[currentIndex];
+            const itemB = products[targetIndex];
+            await sb.from('items_point').update({ display_order: itemB.display_order }).eq('id', itemA.id);
+            await sb.from('items_point').update({ display_order: itemA.display_order }).eq('id', itemB.id);
+            loadAdminData();
         }
         
         function togglePanel(code) { document.getElementById(`panel-${code}`).classList.toggle('hidden'); }
@@ -129,6 +157,7 @@
         function renderCart() { document.getElementById('cart-list').innerHTML = cart.map(i => `<div>${i.name} x${i.qty} (${i.price * i.qty}p)</div>`).join(''); document.getElementById('cart-total').innerText = cart.reduce((s,i) => s + (i.price * i.qty), 0); }
         function clearCart() { cart = []; renderCart(); }
         async function checkout() { 
+            if(cart.length === 0) return showToast("상품을 선택하세요!", "bg-red-500");
             let total = cart.reduce((s,i) => s + (i.price * i.qty), 0); 
             if(currentUser.points < total) return showToast("포인트가 부족해요!", "bg-red-500"); 
             await sb.from('students_point').update({points: currentUser.points - total}).eq('code', currentUser.code); 
@@ -136,6 +165,7 @@
             const btn = document.getElementById('checkout-btn');
             btn.disabled = true;
             btn.innerText = "구매 완료!";
+            showToast("구매 완료! 상품을 받아가세요");
             setTimeout(() => {
                 let sec = 3;
                 const countdown = setInterval(() => {
@@ -149,7 +179,6 @@
         async function confirmDel(t, k) { if(confirm("정말 제거하시겠습니까?")) { await sb.from(t).delete().eq(t==='students_point'?'code':'name', k); loadAdminData(); } }
         async function addStudent() { await sb.from('students_point').insert([{grade: document.getElementById('st-grade').value, name: document.getElementById('st-name').value, code: document.getElementById('st-code').value, points: 0}]); loadAdminData(); }
         async function addProduct() { await sb.from('items_point').insert([{name: document.getElementById('prod-name').value, price: document.getElementById('prod-price').value, display_order: 99}]); loadAdminData(); }
-        async function moveOrder(id, o, d) { await sb.from('items_point').update({ display_order: o + d }).eq('id', id); loadAdminData(); }
         function startTimer() { if(timerInterval) clearInterval(timerInterval); let t = 60; timerInterval = setInterval(() => { t--; document.getElementById('timer-display').innerText = `남은 시간: ${t}초`; if(t <= 0) location.reload(); }, 1000); }
         document.getElementById('admin-trigger').onclick = () => { clickCount++; if (clickCount >= 5) { if (prompt("관리자 비밀번호:") === "2580") { document.getElementById('login-view').classList.add('hidden'); document.getElementById('admin-view').classList.remove('hidden'); loadAdminData(); } clickCount = 0; } };
     </script>
