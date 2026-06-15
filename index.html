@@ -8,13 +8,13 @@
     <style> 
         #toast-container { left: 50%; transform: translateX(-50%); } 
         .toast-large { font-size: 1.5rem !important; padding: 1.5rem 3rem !important; }
+        .dev-tag { position: fixed; bottom: 10px; right: 10px; font-size: 0.75rem; color: #94a3b8; font-weight: bold; }
     </style>
 </head>
 <body class="bg-slate-100 h-screen font-sans">
     <div id="toast-container" class="fixed top-10 z-50 flex flex-col gap-4 items-center pointer-events-none"></div>
 
     <div id="login-view" class="h-full flex items-center justify-center">
-        <!-- 좌우 폭을 약 25% 늘리기 위해 max-w-[560px]로 조정 -->
         <div class="w-full max-w-[560px] bg-white p-10 rounded-3xl shadow-2xl border-t-[14px] border-blue-400">
             <h1 id="admin-trigger" class="text-2xl font-black text-center mb-8 cursor-pointer text-blue-800 select-none">🏪 현수학영어학원 포인트상점</h1>
             <input id="code-input" readonly class="w-full text-center text-5xl font-bold border-8 border-blue-200 p-6 rounded-2xl mb-8 bg-blue-50" placeholder="번호 4자리">
@@ -35,6 +35,7 @@
             
             <p class="text-center text-blue-900 text-xl font-black">출석번호 4자리를 입력하세요</p>
         </div>
+        <div class="dev-tag">Developed by Woo</div>
     </div>
 
     <div id="shop-view" class="hidden h-full p-8 flex gap-6">
@@ -80,6 +81,7 @@
             <div class="bg-white p-6 rounded-2xl border"><h3 class="font-bold mb-4 text-lg">학생 관리</h3><div class="flex gap-2 mb-4"><input id="st-grade" placeholder="학년" class="w-[20%] p-2 border rounded"><input id="st-name" placeholder="이름" class="w-[45%] p-2 border rounded"><input id="st-code" placeholder="코드" class="w-[20%] p-2 border rounded"><button onclick="addStudent()" class="w-[15%] bg-black text-white rounded font-bold">등록</button></div><div id="admin-student-list" class="space-y-1"></div></div>
             <div class="bg-white p-6 rounded-2xl border"><h3 class="font-bold mb-4 text-lg">상품 관리</h3><div class="flex gap-2 mb-4"><input id="prod-name" placeholder="상품명" class="w-[60%] p-2 border rounded"><input id="prod-price" placeholder="가격" class="w-[25%] p-2 border rounded"><button onclick="addProduct()" class="w-[15%] bg-black text-white rounded font-bold">등록</button></div><div id="admin-product-list" class="space-y-2"></div></div>
         </div>
+        <div class="dev-tag">Developed by Woo</div>
     </div>
 
     <script>
