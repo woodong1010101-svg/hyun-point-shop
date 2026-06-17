@@ -2,146 +2,937 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>현수학영어학원 포인트상점</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style> 
-        #toast-container { left: 50%; transform: translateX(-50%); } 
+    <style>
+        #toast-container { left: 50%; transform: translateX(-50%); z-index: 99999 !important; }
         .toast-large { font-size: 1.5rem !important; padding: 1.5rem 3rem !important; }
         .dev-tag { position: fixed; bottom: 10px; right: 10px; font-size: 0.75rem; color: #94a3b8; font-weight: bold; pointer-events: none; }
         #alert-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 375px; }
         .alert-box { background: white; border: 2px solid #dc2626; border-radius: 12px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+        /* 모바일 최적화를 위한 미디어 쿼리 커스텀 스타일 */
+        @media (max-width: 768px) {
+            #admin-view { padding: 1rem 1rem 5rem 1rem !important; }
+            .mobile-hide { display: none !important; }
+            .mobile-full-width { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
+            
+            /* 모바일 전용 터치 확장 및 패딩 스케일업 */
+            .mobile-touch-btn { padding-top: 0.8rem !important; padding-bottom: 0.8rem !important; font-size: 0.95rem !important; }
+            .mobile-grid-3 { grid-template-columns: repeat(3, 1fr) !important; gap: 0.5rem !important; }
+            
+            /* 하단 탭바 활성화 시 모바일 뷰 전용 가시성 바인딩 */
+            .mobile-tab-content { display: none; }
+            .mobile-tab-content.active { display: flex !important; }
+        }
     </style>
 </head>
-<body class="bg-slate-100 h-screen font-sans">
-    <div id="toast-container" class="fixed top-10 z-50 flex flex-col gap-4 items-center pointer-events-none"></div>
-    <div id="alert-container"></div> 
+<body class="h-screen bg-slate-100 select-none">
+
+    <div id="toast-container" class="fixed top-5 flex flex-col gap-2"></div>
+    <div id="alert-container" class="mobile-hide"></div>
 
     <div id="login-view" class="h-full flex items-center justify-center">
         <div class="w-full max-w-[560px] bg-white p-10 rounded-3xl shadow-2xl border-t-[14px] border-blue-400">
-            <h1 id="admin-trigger" class="text-2xl font-black text-center mb-8 cursor-pointer text-blue-800 select-none">🏪 현수학영어학원 포인트상점</h1>
-            <input id="code-input" readonly class="w-full text-center text-5xl font-bold border-8 border-blue-200 p-6 rounded-2xl mb-8 bg-blue-50">
+            <h1 id="admin-trigger" onclick="handleAdminTrigger()" class="text-2xl font-black text-center mb-8 cursor-pointer text-blue-800 select-none">🏪 현수학영어학원 포인트상점</h1>
+            <input id="code-input" readonly class="w-full text-center text-5xl font-bold border-8 border-blue-200 p-6 rounded-2xl mb-8 bg-blue-50" placeholder="번호 4자리">
             
             <div class="grid grid-cols-3 gap-3 mb-4">
-                <button onclick="keyInput('1')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">1</button>
-                <button onclick="keyInput('2')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">2</button>
-                <button onclick="keyInput('3')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">3</button>
-                <button onclick="keyInput('4')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">4</button>
-                <button onclick="keyInput('5')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">5</button>
-                <button onclick="keyInput('6')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">6</button>
-                <button onclick="keyInput('7')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">7</button>
-                <button onclick="keyInput('8')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">8</button>
-                <button onclick="keyInput('9')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">9</button>
-                <div></div><button onclick="keyInput('0')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold">0</button>
-                <button onclick="keyInput('back')" class="p-6 bg-blue-200 rounded-2xl text-2xl font-bold">⌫</button>
+                <button onclick="keyInput('1')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">1</button>
+                <button onclick="keyInput('2')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">2</button>
+                <button onclick="keyInput('3')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">3</button>
+                <button onclick="keyInput('4')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">4</button>
+                <button onclick="keyInput('5')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">5</button>
+                <button onclick="keyInput('6')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">6</button>
+                <button onclick="keyInput('7')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">7</button>
+                <button onclick="keyInput('8')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">8</button>
+                <button onclick="keyInput('9')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">9</button>
+                <div></div>
+                <button onclick="keyInput('0')" class="p-6 bg-blue-50 rounded-2xl text-2xl font-bold active:bg-blue-200">0</button>
+                <button onclick="keyInput('back')" class="p-6 bg-blue-200 rounded-2xl text-2xl font-bold active:bg-blue-300">⌫</button>
+            </div>
+            <p class="text-center font-bold text-lg text-blue-600">네자리 출석번호를 입력하세요</p>
+        </div>
+    </div>
+
+    <div id="admin-login-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center backdrop-blur-xs">
+        <div class="bg-white w-full max-w-sm p-6 rounded-3xl shadow-2xl border animate-in fade-in zoom-in-95 duration-150">
+            <h3 class="text-xl font-black text-slate-800 mb-4 text-center">🔐 관리자 로그인</h3>
+            <div class="space-y-3 mb-6">
+                <input id="admin-id-input" type="text" placeholder="관리자 ID" onkeydown="handleAdminKeyPress(event)" class="w-full p-3 border rounded-xl text-base outline-none focus:ring-2 focus:ring-purple-400">
+                <input id="admin-pw-input" type="password" placeholder="비밀번호" onkeydown="handleAdminKeyPress(event)" class="w-full p-3 border rounded-xl text-base outline-none focus:ring-2 focus:ring-purple-400">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeAdminModal()" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-bold cursor-pointer">취소</button>
+                <button onclick="submitAdminLogin()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-bold cursor-pointer">로그인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center backdrop-blur-xs">
+        <div class="bg-white w-full max-w-sm p-6 rounded-3xl shadow-2xl border text-center animate-in fade-in zoom-in-95 duration-150">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🤔</div>
+            <h3 id="confirm-question" class="text-xl font-black text-slate-800 mb-6 leading-relaxed">이름님이 맞으십니까?</h3>
+            <div class="flex gap-3">
+                <button onclick="rejectIdentity()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-xl font-bold cursor-pointer transition-colors">아니오</button>
+                <button onclick="acceptIdentity()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold cursor-pointer transition-colors">예</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-view" class="hidden h-full p-8 flex gap-6">
+        <div class="flex-1 flex flex-col">
+            <div class="bg-white p-6 rounded-2xl shadow-sm mb-6 flex justify-between items-center">
+                <div class="flex items-baseline gap-4">
+                    <h2 id="welcome-msg" class="text-2xl font-black text-blue-900"></h2>
+                    <span id="current-balance" class="text-lg font-bold text-blue-600"></span>
+                </div>
+                <div class="text-right">
+                    <p id="timer-display" class="text-red-500 font-bold mb-1">남은 시간: 60초</p>
+                    <button onclick="logout()" class="bg-red-500 text-white px-6 py-2 rounded-xl font-bold cursor-pointer">로그아웃</button>
+                </div>
+            </div>
+            <div id="product-list" class="grid grid-cols-3 gap-4 overflow-y-auto flex-1 content-start"></div>
+        </div>
+        
+        <div class="w-80 bg-white p-6 rounded-3xl shadow-xl flex flex-col">
+            <h3 class="font-bold text-xl mb-4">🛒 장바구니</h3>
+            <div id="cart-list" class="flex-1 space-y-2 mb-4 overflow-y-auto"></div>
+            <button onclick="clearCart()" class="w-full bg-red-600 text-white p-3 mb-2 rounded-xl font-bold text-lg cursor-pointer">전체 초기화</button>
+            <p class="font-bold text-lg mb-4 text-center">합계: <span id="cart-total" class="text-blue-600">0</span>p</p>
+            <button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-lg cursor-pointer">구매하기</button>
+        </div>
+    </div>
+
+    <div id="admin-view" class="hidden h-full p-8 bg-slate-50 overflow-y-auto">
+        
+        <div class="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl border shadow-sm max-md:p-4 max-md:mb-4">
+            <h2 id="admin-title-display" class="text-xl font-bold max-md:text-base">관리자 모드</h2>
+            
+            <div class="flex gap-2 items-center max-md:gap-1">
+                <button onclick="openMyAccountModal()" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors max-md:px-2 max-md:py-1.5 max-md:text-xs">👤 내 계정</button>
+               <button id="admin-staff-btn" 
+        onclick="openStaffModal()" 
+        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors max-md:px-2 max-md:py-1.5 max-md:text-xs">
+    선생님 관리
+</button>
+                
+                <button onclick="showLogs('point_logs')" class="mobile-hide bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">포인트 지급로그</button>
+                <button onclick="renderPurchaseLogTabs('미지급')" class="mobile-hide bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">상품 구매로그</button>
+                <button onclick="runUpgrade()" class="mobile-hide bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">학년 진급</button>
+                
+                <button onclick="location.reload()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer max-md:px-2 max-md:py-1.5 max-md:text-xs">학생 화면</button>
+            </div>
+        </div>
+
+        <div id="log-view" class="hidden bg-white p-6 rounded-2xl border mb-6 max-md:p-4 max-md:mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="log-title" class="font-bold text-lg max-md:text-base">로그</h3>
+                <button onclick="closeLogViewMobile()" class="bg-gray-200 px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">닫기 X</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead id="log-head" class="bg-slate-100 font-bold text-sm"></thead>
+                    <tbody id="log-content" class="text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mobile-full-width">
+            
+            <div id="mobile-tab-students" class="mobile-tab-content active bg-white p-6 rounded-2xl border flex flex-col max-md:p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg max-md:text-base">학생 관리</h3>
+                    <button onclick="openStudentModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-bold text-sm cursor-pointer transition-colors max-md:py-2">+ 학생 등록</button>
+                </div>
+                <div class="mb-4">
+                    <input id="st-search" oninput="filterStudents()" placeholder="🔍 검색할 학생 이름 또는 코드를 입력하세요..." class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-300 outline-none transition-all max-md:p-3 max-md:text-base">
+                </div>
+                <div id="admin-student-list" class="space-y-1 max-h-[500px] overflow-y-auto pr-1 max-md:max-h-none"></div>
+            </div>
+
+            <div id="mobile-tab-products" class="mobile-tab-content bg-white p-6 rounded-2xl border max-md:p-4">
+                <h3 class="font-bold mb-4 text-lg max-md:text-base">상품 관리</h3>
+                <div class="flex gap-2 mb-4 max-md:flex-col max-md:gap-3 max-md:bg-slate-50 max-md:p-4 max-md:rounded-2xl max-md:border max-md:border-slate-200">
+                    <div class="flex gap-2 w-full md:w-[85%]">
+                        <input id="prod-name" placeholder="상품명" class="w-[65%] p-2 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-300 text-sm max-md:p-3 max-md:text-base max-md:w-[70%]">
+                        <input id="prod-price" placeholder="가격" class="w-[35%] p-2 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-300 text-sm max-md:p-3 max-md:text-base max-md:w-[30%]">
+                    </div>
+                    <button onclick="addProduct()" class="w-full md:w-[15%] bg-black text-white p-2 rounded-xl font-bold cursor-pointer transition-colors hover:bg-slate-800 max-md:py-3.5 max-md:text-base shadow-sm">상품 등록</button>
+                </div>
+                <div id="admin-product-list" class="space-y-2 max-h-[500px] overflow-y-auto max-md:max-h-none"></div>
+            </div>
+
+            <div id="mobile-tab-logs" class="mobile-tab-content bg-white p-6 rounded-2xl border flex-col gap-3 hidden">
+                <h3 class="font-bold text-lg mb-2">원내 로그 및 원장 제어</h3>
+                <button onclick="showLogs('point_logs')" class="w-full p-4 bg-green-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-green-700">📈 포인트 지급로그 열기</button>
+                <button onclick="renderPurchaseLogTabs('미지급')" class="w-full p-4 bg-purple-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-purple-700">🛒 상품 구매로그 (지급 처리)</button>
+                <div class="border-t my-2"></div>
+                <button onclick="runUpgrade()" class="w-full p-4 bg-yellow-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-yellow-700">🎓 전원 학년 진급 (정기 처리)</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="mobile-nav-bar" class="hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 z-40 items-center justify-around">
+        <button id="btn-nav-students" onclick="switchMobileTab('students')" class="flex flex-col items-center justify-center flex-1 h-full text-blue-600 font-black text-xs gap-0.5">
+            <span class="text-xl">🧑‍🎓</span><span>학생 관리</span>
+        </button>
+        <button id="btn-nav-products" onclick="switchMobileTab('products')" class="flex flex-col items-center justify-center flex-1 h-full text-slate-400 font-bold text-xs gap-0.5">
+            <span class="text-xl">🎁</span><span>상품 관리</span>
+        </button>
+        <button id="btn-nav-logs" onclick="switchMobileTab('logs')" class="flex flex-col items-center justify-center flex-1 h-full text-slate-400 font-bold text-xs gap-0.5">
+            <span class="text-xl">📋</span><span>메뉴/로그</span>
+        </button>
+    </div>
+
+    <div id="student-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center backdrop-blur-xs">
+        <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl border animate-in fade-in zoom-in-95 duration-150 max-md:mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black text-slate-800">✨ 신규 학생 등록</h3>
+                <button onclick="closeStudentModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
+            </div>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">학년</label>
+                    <input id="st-grade" type="number" placeholder="예시: 3" class="w-full p-3 border rounded-xl text-base focus:ring-2 focus:ring-blue-400 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">이름</label>
+                    <input id="st-name" type="text" placeholder="예시: 홍길동" class="w-full p-3 border rounded-xl text-base focus:ring-2 focus:ring-blue-400 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">출석 코드 (4자리)</label>
+                    <input id="st-code" type="text" maxlength="4" placeholder="예시: 1234" class="w-full p-3 border rounded-xl font-mono text-base focus:ring-2 focus:ring-blue-400 outline-none">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeStudentModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold cursor-pointer transition-colors">취소</button>
+                <button onclick="addStudent()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold cursor-pointer transition-colors">등록하기</button>
+            </div>
+        </div>
+    </div>
+
+   <div id="staff-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center backdrop-blur-xs">
+        <div class="bg-white w-full max-w-4xl p-6 rounded-3xl shadow-2xl border flex flex-col h-[80vh] animate-in fade-in zoom-in-95 duration-150 max-md:mx-4 max-md:p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="staff-modal-title" class="text-xl font-black text-slate-800 max-md:text-base">👨‍🏫 선생님 계정 관리</h3>
+                <button onclick="closeStaffModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
+            </div>
+            <div class="flex-1 overflow-auto border rounded-xl bg-slate-50">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-200 sticky top-0 font-bold text-sm text-slate-700">
+                        <tr>
+                            <th class="p-3 border">ID</th>
+                            <th class="p-3 border">이름</th>
+                            <th class="p-3 border">등급</th>
+                            <th id="staff-th-pw" class="p-3 border">비밀번호</th>
+                            <th class="p-3 border text-center">동작</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-table-body" class="text-sm bg-white"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeStaffModal()" class="bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold cursor-pointer">닫기</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="my-account-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center backdrop-blur-xs">
+        <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl border animate-in fade-in zoom-in-95 duration-150 max-md:mx-4 max-md:p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-slate-800 max-md:text-base">👤 내 계정 정보 변경</h3>
+                <button onclick="closeMyAccountModal()" class="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
             </div>
             
-            <p class="text-center font-bold text-lg text-blue-600">네자리 출석번호를 입력하세요</p>
+            <div class="space-y-4">
+                <div class="p-4 bg-slate-50 rounded-2xl border">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">선생님 성함 변경</label>
+                    <div class="flex gap-2">
+                        <input id="my-name-input" type="text" class="flex-1 p-2.5 border rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-slate-400">
+                        <button onclick="changeMyName()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer transition-colors">변경</button>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-purple-50/50 rounded-2xl border border-purple-100">
+                    <label class="block text-xs font-bold text-purple-600 mb-2">비밀번호 변경</label>
+                    <div class="space-y-2">
+                        <input id="my-pw-input" type="password" placeholder="변경할 비밀번호" class="w-full p-2.5 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-purple-400">
+                        <input id="my-pw-confirm" type="password" placeholder="비밀번호 확인" class="w-full p-2.5 border rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-purple-400">
+                        <button onclick="changeMyPassword()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-colors">비밀번호 변경 적용</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-5 text-right">
+                <button onclick="closeMyAccountModal()" class="bg-gray-100 text-gray-600 px-5 py-2 rounded-xl font-bold text-sm cursor-pointer hover:bg-gray-200">닫기</button>
+            </div>
         </div>
     </div>
 
     <div class="dev-tag">Developed by Woo</div>
 
-    <div id="shop-view" class="hidden h-full p-8 flex gap-6">
-        <div class="flex-1"><div class="bg-white p-6 rounded-2xl shadow-sm mb-6 flex justify-between items-center"><div class="flex items-baseline gap-4"><h2 id="welcome-msg" class="text-2xl font-black text-blue-900"></h2><span id="current-balance" class="text-lg font-bold text-blue-600"></span></div><div><p id="timer-display" class="text-red-500 font-bold mb-1">남은 시간: 60초</p><button onclick="location.reload()" class="bg-red-500 text-white px-6 py-2 rounded-xl font-bold">로그아웃</button></div></div><div id="product-list" class="grid grid-cols-3 gap-4"></div></div>
-        <div class="w-80 bg-white p-6 rounded-3xl shadow-xl flex flex-col"><h3 class="font-bold text-xl mb-4">🛒 장바구니</h3><div id="cart-list" class="flex-1 space-y-2 mb-4 overflow-y-auto"></div><button onclick="clearCart()" class="w-full bg-red-600 text-white p-3 mb-2 rounded-xl font-bold text-lg">전체 초기화</button><p class="font-bold text-lg mb-4 text-center">합계: <span id="cart-total" class="text-blue-600">0</span>p</p><button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-lg">구매하기</button></div>
-    </div>
-
-    <div id="admin-view" class="hidden h-full p-8 bg-slate-50 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl border shadow-sm">
-            <h2 class="text-xl font-bold">관리자 모드</h2>
-            <div class="flex gap-2"><button onclick="showLogs('point_logs')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold">포인트 지급로그</button><button onclick="renderPurchaseLogTabs('미지급')" class="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold">상품 구매로그</button><button onclick="runUpgrade()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold">학년 진급</button><button onclick="location.reload()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">학생 화면</button></div>
-        </div>
-        <div id="log-view" class="hidden bg-white p-6 rounded-2xl border mb-6">
-            <div class="flex justify-between items-center mb-4"><h3 id="log-title" class="font-bold text-lg">로그</h3><button onclick="document.getElementById('log-view').classList.add('hidden')" class="bg-gray-200 px-4 py-2 rounded-lg font-bold">닫기 X</button></div>
-            <div class="overflow-x-auto"><table class="w-full text-sm border-collapse border"><thead class="bg-gray-100" id="log-head"></thead><tbody id="log-content"></tbody></table></div>
-        </div>
-        <div class="grid grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-2xl border"><h3 class="font-bold mb-4 text-lg">학생 관리</h3><div class="flex gap-2 mb-4"><input id="st-grade" placeholder="학년" class="w-[20%] p-2 border rounded"><input id="st-name" placeholder="이름" class="w-[45%] p-2 border rounded"><input id="st-code" placeholder="코드" class="w-[20%] p-2 border rounded"><button onclick="addStudent()" class="w-[15%] bg-black text-white rounded font-bold">등록</button></div><div id="admin-student-list" class="space-y-1"></div></div>
-            <div class="bg-white p-6 rounded-2xl border"><h3 class="font-bold mb-4 text-lg">상품 관리</h3><div class="flex gap-2 mb-4"><input id="prod-name" placeholder="상품명" class="w-[60%] p-2 border rounded"><input id="prod-price" placeholder="가격" class="w-[25%] p-2 border rounded"><button onclick="addProduct()" class="w-[15%] bg-black text-white rounded font-bold">등록</button></div><div id="admin-product-list" class="space-y-2"></div></div>
-        </div>
-    </div>
-
     <script>
+        // Supabase 설정
         const sb = supabase.createClient("https://yuwadwblkldgynnrooyq.supabase.co", "sb_publishable_SvYObjjIPkNM1ZtDnFWVPg_cr_78qQB");
-        let currentUser = null, cart = [], timerInterval, clickCount = 0;
+        
+        let currentUser = null;
+        let tempUser = null; 
+        let currentAdmin = null; 
+        let cart = [];
+        let timerInterval;
+        let timerCount = 60;
+        let clickCount = 0;
+        let allStudentsCache = [];
 
+        // 실시간 알림 청취
+        sb.channel('purchase_logs')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'purchase_logs' }, payload => {
+              if (document.getElementById('admin-view').classList.contains('hidden')) return;
+              if (!currentAdmin || currentAdmin.role_perm === '선생님 등급') return;
+              
+              const p = payload.new;
+              const alertId = 'alert-' + p.id;
+              const div = document.createElement('div');
+              div.id = alertId;
+              div.className = "alert-box"; 
+              div.innerHTML = `
+                  <div class="flex justify-between items-center">
+                      <div class="font-black text-red-600">🛒 ${p.student_grade ? '초' + p.student_grade + ' ' : ''}${p.student_name}</div>
+                      <button onclick="updateLogStatus('${p.id}', '${alertId}')" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold cursor-pointer">지급완료</button>
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">${p.items_detail}</div>
+              `;
+              document.getElementById('alert-container').appendChild(div);
+          }).subscribe();
+
+        // 공통 토스트 메시지
+        function showToast(message, bgColor = "bg-blue-600") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `${bgColor} text-white px-6 py-3 rounded-2xl font-bold shadow-lg text-xl animate-bounce`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        // 로그인 키패드 동작
+        function keyInput(k) {
+            const input = document.getElementById('code-input');
+            if (k === 'back') {
+                input.value = input.value.slice(0, -1);
+            } else if (input.value.length < 4) {
+                input.value += k;
+            }
+            if (input.value.length === 4) {
+                checkStudent(input.value);
+            }
+        }
+
+        // 학생 로그인 조회 및 본인확인 팝업 노출
+        async function checkStudent(code) {
+            const { data, error } = await sb.from('students_point').select('*').eq('code', code).single();
+            if (data) {
+                tempUser = data; 
+                document.getElementById('confirm-question').innerText = `초${data.grade} [ ${data.name} ] 학생이\n맞으십니까?`;
+                document.getElementById('confirm-modal').classList.remove('hidden'); 
+            } else {
+                showToast("등록되지 않은 학생입니다!", "bg-red-500");
+                document.getElementById('code-input').value = '';
+            }
+        }
+
+        function acceptIdentity() {
+            if (!tempUser) return;
+            currentUser = tempUser;
+            tempUser = null;
+
+            document.getElementById('confirm-modal').classList.add('hidden');
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('shop-view').classList.remove('hidden');
+            
+            document.getElementById('welcome-msg').innerText = `${currentUser.name}님 환영합니다!`;
+            document.getElementById('current-balance').innerText = `현재 잔액: ${currentUser.points}p`;
+            
+            showToast(`${currentUser.name}님 환영해요!`);
+            loadShop();
+            startTimer();
+        }
+
+        function rejectIdentity() {
+            tempUser = null;
+            document.getElementById('confirm-modal').classList.add('hidden');
+            document.getElementById('code-input').value = ''; 
+            showToast("출석번호를 다시 확인해 주세요.", "bg-slate-600");
+        }
+
+        // 학생용 상점 리스트 바인딩
+        async function loadShop() {
+            const { data } = await sb.from('items_point').select('*').order('display_order', { ascending: true });
+            document.getElementById('product-list').innerHTML = (data || []).map(p => `
+                <button onclick="addToCart('${p.name}', ${p.price})" class="p-6 bg-white border-2 border-slate-200 hover:border-blue-400 rounded-2xl font-bold text-lg shadow-sm transition-all text-center cursor-pointer">
+                    <span class="text-slate-800 block mb-1">${p.name}</span>
+                    <span class="text-blue-600 block text-base">${p.price}p</span>
+                </button>
+            `).join('');
+        }
+
+        // 상점 자동 로그아웃 타이머
+        function startTimer() {
+            timerCount = 60;
+            document.getElementById('timer-display').innerText = `남은 시간: ${timerCount}초`;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timerCount--;
+                document.getElementById('timer-display').innerText = `남은 시간: ${timerCount}초`;
+                if (timerCount <= 0) {
+                    logout();
+                }
+            }, 1000);
+        }
+
+        function logout() {
+            clearInterval(timerInterval);
+            location.reload();
+        }
+
+        // 카트 제어
+        function addToCart(name, price) {
+            startTimer();
+            let item = cart.find(x => x.name === name);
+            if (item) item.qty++;
+            else cart.push({ name, price, qty: 1 });
+            renderCart();
+        }
+
+        function renderCart() {
+            document.getElementById('cart-list').innerHTML = cart.map(i => `
+                <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg text-sm font-semibold border">
+                    <span>${i.name} x${i.qty}</span>
+                    <span class="text-blue-600">${i.price * i.qty}p</span>
+                </div>
+            `).join('');
+            document.getElementById('cart-total').innerText = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+        }
+
+        function clearCart() {
+            cart = [];
+            renderCart();
+            showToast("초기화 완료");
+        }
+
+        // 학생 상품 결제(구매) 처리
+        async function checkout() {
+            if (cart.length === 0) return showToast("상품을 선택하세요!", "bg-red-500");
+            let total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+            if (currentUser.points < total) return showToast("포인트가 부족해요!", "bg-red-500");
+
+            await sb.from('students_point').update({ points: currentUser.points - total }).eq('code', currentUser.code);
+            await sb.from('purchase_logs').insert([{ 
+                student_name: currentUser.name, 
+                student_grade: currentUser.grade, 
+                items_detail: cart.map(i => `${i.name} ${i.qty}개`).join(', '), 
+                total_spent: total, 
+                remaining_points: currentUser.points - total, 
+                status: '미지급' 
+            }]);
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            
+            let count = 3; 
+            showToast("구매완료! 상품을 받아가세요", "bg-blue-600");
+            
+            const interval = setInterval(() => { 
+                btn.innerText = `${count}초 후 메인으로 이동`; 
+                count--; 
+                if (count < 0) { 
+                    clearInterval(interval); 
+                    location.reload(); 
+                } 
+            }, 1000);
+        }
+
+        // 5번 히든클릭 시 관리자 로그인 모달 창 노출
+        function handleAdminTrigger() {
+            clickCount++;
+            if (clickCount >= 5) {
+                clickCount = 0; 
+                document.getElementById('admin-id-input').value = '';
+                document.getElementById('admin-pw-input').value = '';
+                document.getElementById('admin-login-modal').classList.remove('hidden');
+                document.getElementById('admin-id-input').focus();
+            }
+        }
+
+        function closeAdminModal() {
+            document.getElementById('admin-login-modal').classList.add('hidden');
+        }
+
+        // 관리자 로그인 창에서 엔터키 입력 감지 및 로그인 실행
+        function handleAdminKeyPress(event) {
+            if (event.key === 'Enter') {
+                submitAdminLogin();
+            }
+        }
+
+     // 관리자 로그인 검증 및 타이틀 표기 변경
+async function submitAdminLogin() {
+    const id = document.getElementById('admin-id-input').value.trim();
+    const pw = document.getElementById('admin-pw-input').value.trim();
+
+    if(!id || !pw) return alert("아이디와 비밀번호를 모두 입력하세요.");
+
+    const { data, error } = await sb.from('admin_accounts').select('*').eq('admin_id', id).eq('admin_pw', pw).single();
+
+    if(data) {
+        currentAdmin = data; 
+        closeAdminModal();
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('admin-view').classList.remove('hidden');
+        
+        if (window.innerWidth <= 768) {
+            document.getElementById('mobile-nav-bar').style.display = 'flex';
+        }
+        
+        document.getElementById('admin-title-display').innerText = `${data.admin_name} ${data.role_name} 환영합니다`;
+        
+        // --- [수정된 부분 시작] ---
+        const staffBtn = document.getElementById('admin-staff-btn');
+if (staffBtn) {
+    // role_perm 값이 정확히 '선생님 등급'일 때만 숨김
+    if (data.role_perm === '선생님 등급') {
+        staffBtn.style.display = 'none';
+        staffBtn.classList.add('hidden');
+    } else {
+        staffBtn.style.display = 'block';
+        staffBtn.classList.remove('hidden');
+    }
+}
+        // --- [수정된 부분 끝] ---
+
+        showToast(`${data.admin_name} 선생님, 인증 성공!`, "bg-purple-600");
+        loadAdminData();
+    } else {
+        showToast("계정 정보가 일치하지 않습니다.", "bg-red-500");
+    }
+}
+
+        function openStudentModal() {
+            document.getElementById('student-modal').classList.remove('hidden');
+        }
+        function closeStudentModal() {
+            document.getElementById('student-modal').classList.add('hidden');
+            document.getElementById('st-grade').value = '';
+            document.getElementById('st-name').value = '';
+            document.getElementById('st-code').value = '';
+        }
+
+        function openStaffModal() {
+            if (!currentAdmin) return;
+            document.getElementById('staff-modal').classList.remove('hidden');
+            loadStaffData();
+        }
+
+        function openMyAccountModal() {
+            if(!currentAdmin) return;
+            document.getElementById('my-name-input').value = currentAdmin.admin_name;
+            document.getElementById('my-pw-input').value = '';
+            document.getElementById('my-pw-confirm').value = '';
+            document.getElementById('my-account-modal').classList.remove('hidden');
+        }
+
+        function closeMyAccountModal() {
+            document.getElementById('my-account-modal').classList.add('hidden');
+        }
+
+        // ESC 키 입력 시 모든 팝업 모달 닫기 연동
+        document.addEventListener('keydown', function(e) {
+            if(e.key === 'Escape') {
+                closeStaffModal();
+                closeStudentModal();
+                closeAdminModal();
+                closeMyAccountModal();
+            }
+        });
+
+        function closeStaffModal() {
+            document.getElementById('staff-modal').classList.add('hidden');
+        }
+
+        // 내 계정 정보: 성함 변경 로직
+        async function changeMyName() {
+            if (!currentAdmin) return;
+            const newName = document.getElementById('my-name-input').value.trim();
+            if (!newName) return alert("변경할 이름을 입력하세요.");
+            if (newName === currentAdmin.admin_name) return showToast("현재 이름과 동일합니다.", "bg-slate-500");
+
+            if (confirm("정말로 이름을 변경하시겠습니까?")) {
+                const { error } = await sb.from('admin_accounts').update({ admin_name: newName }).eq('id', currentAdmin.id);
+                if (error) return showToast("이름 변경 처리에 실패했습니다.", "bg-red-500");
+
+                currentAdmin.admin_name = newName;
+                document.getElementById('admin-title-display').innerText = `${currentAdmin.admin_name} ${currentAdmin.role_name} 환영합니다`;
+                showToast("성함이 성공적으로 변경되었습니다.", "bg-green-600");
+                closeMyAccountModal();
+            }
+        }
+
+        // 내 계정 정보: 비밀번호 변경 로직
+        async function changeMyPassword() {
+            if (!currentAdmin) return;
+            const newPw = document.getElementById('my-pw-input').value.trim();
+            const confirmPw = document.getElementById('my-pw-confirm').value.trim();
+
+            if (!newPw || !confirmPw) return alert("비밀번호 입력칸을 모두 채워주세요.");
+            if (newPw !== confirmPw) return showToast("변경할 비밀번호와 확인란이 일치하지 않습니다.", "bg-red-500");
+
+            if (confirm("정말로 비밀번호를 변경하시겠습니까?")) {
+                const { error } = await sb.from('admin_accounts').update({ admin_pw: newPw }).eq('id', currentAdmin.id);
+                if (error) return showToast("비밀번호 변경 처리에 실패했습니다.", "bg-red-500");
+
+                currentAdmin.admin_pw = newPw;
+                showToast("비밀번호가 안전하게 변경되었습니다.", "bg-green-600");
+                closeMyAccountModal();
+            }
+        }
+
+        // 선생님 데이터 비동기 조회 및 화면 랜더링
+        async function loadStaffData() {
+    if (!currentAdmin) return;
+
+    const { data: staffList, error } = await sb.from('admin_accounts').select('*').order('id', { ascending: true });
+    if (error) return showToast("데이터 로드 실패", "bg-red-500");
+
+    const tbody = document.getElementById('staff-table-body');
+    const thPw = document.getElementById('staff-th-pw');
+    const myPerm = currentAdmin.role_perm || ""; 
+
+    let filteredStaff = [];
+    const isMaster = myPerm.includes('최고 관리자');
+
+    if (isMaster) {
+        filteredStaff = staffList.filter(u => u.role_perm.includes('관리자') || u.role_perm.includes('선생님'));
+        if(thPw) thPw.classList.remove('hidden'); // 헤더 보이기
+    } else if (myPerm.includes('관리자')) {
+        filteredStaff = staffList.filter(u => u.role_perm.includes('선생님'));
+        if(thPw) thPw.classList.add('hidden'); // 헤더 숨기기
+    }
+
+    tbody.innerHTML = filteredStaff.map(u => `
+        <tr class="hover:bg-slate-50">
+            <td class="p-3 border">${u.admin_id}</td>
+            <td class="p-3 border">
+                <input id="input-staff-name-${u.id}" value="${u.admin_name}" class="p-1 border rounded w-full">
+            </td>
+            <td class="p-3 border">${u.role_name}</td>
+            
+            ${isMaster ? `<td class="p-3 border">${u.admin_pw}</td>` : ''}
+            
+            <td class="p-3 border text-center">
+                <button onclick="updateStaffName('${u.id}', '${u.admin_name}')" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs font-bold cursor-pointer">변경</button>
+            </td>
+        </tr>
+    `).join('');
+}
+        // 선생님 이름 변경 DB 업데이트
+        async function updateStaffName(id, originalName) {
+            const inputEl = document.getElementById(`input-staff-name-${id}`);
+            const newName = inputEl.value.trim();
+
+            if (!newName) return alert("변경할 이름을 입력해 주세요.");
+            if (originalName === newName) return showToast("변경된 내용이 없습니다.", "bg-slate-50");
+
+            if (confirm(`정말로 변경하시겠습니까?\n[ ${originalName} ] ➔ [ ${newName} ]`)) {
+                const { error } = await sb.from('admin_accounts').update({ admin_name: newName }).eq('id', id);
+                if (error) return showToast("데이터베이스 반영 실패", "bg-red-500");
+                
+                showToast("이름이 성공적으로 변경되었습니다.", "bg-green-600");
+                if (currentAdmin.id == id) {
+                    currentAdmin.admin_name = newName;
+                    document.getElementById('admin-title-display').innerText = `${currentAdmin.admin_name} ${currentAdmin.role_name} 환영합니다`;
+                }
+                loadStaffData(); 
+            } else {
+                inputEl.value = originalName;
+            }
+        }
+
+        // 관리자 데이터 목록 출력
+        async function loadAdminData() { 
+            const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); 
+            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
+            
+            allStudentsCache = students || []; 
+            filterStudents(); 
+
+            document.getElementById('admin-product-list').innerHTML = (products || []).map((p, idx) => `
+                <div class='flex justify-between border rounded-xl bg-white p-3 items-center text-sm shadow-sm max-md:p-4 max-md:mb-1 hover:border-slate-300 transition-colors'>
+                    <span class="font-bold text-slate-700 max-md:text-base">${p.name} <span class="text-blue-600 font-extrabold max-md:block max-md:text-sm max-md:font-bold">(${p.price}p)</span></span>
+                    <div class="flex gap-1 items-center max-md:gap-2">
+                        <button onclick="moveOrder(${idx}, -1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer max-md:p-2.5 max-md:text-sm shadow-xs">▲</button>
+                        <button onclick="moveOrder(${idx}, 1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer max-md:p-2.5 max-md:text-sm shadow-xs">▼</button>
+                        <button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs ml-2 bg-red-50 px-2.5 py-2 rounded-xl hover:bg-red-100 cursor-pointer max-md:p-2.5 max-md:text-sm max-md:ml-1'>제거</button>
+                    </div>
+                </div>
+            `).join(''); 
+const staffBtn = document.getElementById('admin-staff-btn');
+            if (staffBtn) {
+                // currentAdmin은 로그인 시점에 저장된 DB 데이터 객체입니다.
+                // role_perm 값이 "선생님 등급"과 일치하면 숨깁니다.
+                if (currentAdmin && currentAdmin.role_perm === '선생님 등급') {
+                    staffBtn.style.display = 'none';
+                } else {
+                    staffBtn.style.display = 'block';
+                }
+            }            // --- [추가 끝] ---
+        }
+
+        // 실시간 학생 목록 검색/필터링 기능
+        function filterStudents() {
+            const query = document.getElementById('st-search').value.trim().toLowerCase();
+            const filtered = allStudentsCache.filter(s => 
+                s.name.toLowerCase().includes(query) || s.code.includes(query)
+            );
+
+            const pOpts = [{v:100, l:'100p'}, {v:500, l:'500p'}, {v:1000, l:'1000p'}, {v:5000, l:'5000p'}, {v:2000, l:'생일'}, {v:-500, l:'-500p'}]; 
+
+            if(filtered.length === 0) {
+                document.getElementById('admin-student-list').innerHTML = `<p class="text-sm text-center text-gray-400 py-4">일치하는 학생이 없습니다.</p>`;
+                return;
+            }
+
+            document.getElementById('admin-student-list').innerHTML = filtered.map(s => `
+                <div class='border rounded-lg p-2 bg-white shadow-sm max-md:p-4 max-md:mb-2'>
+                    <div class='font-bold flex justify-between items-center'>
+                        <span onclick="togglePanel('${s.code}')" class="cursor-pointer text-slate-700 hover:text-blue-600 flex-1 max-md:text-base max-md:py-1">초${s.grade} / ${s.name} / ${s.code} / <span class="text-blue-600">${s.points}p</span></span> 
+                        <button onclick="confirmDel('students_point', '${s.code}')" class='text-red-500 text-xs font-bold cursor-pointer bg-red-50 px-2 py-1 rounded hover:bg-red-100 max-md:p-2 max-md:text-sm'>제거</button>
+                    </div>
+                    <div id="panel-${s.code}" class='hidden p-3 bg-blue-50 rounded mt-2 border border-blue-100 max-md:p-4'>
+                        <div class='grid grid-cols-3 gap-2 mb-3 mobile-grid-3'>
+                            ${pOpts.map(o => `<button onclick="updateTemp('${s.code}', ${o.v})" class='mobile-touch-btn bg-white px-2 py-2 border rounded text-xs font-bold hover:bg-slate-50 cursor-pointer active:bg-slate-200'>${o.l}</button>`).join('')}
+                        </div>
+                        <div class='flex items-center gap-2 max-md:mt-4'>
+                            <span class='text-sm font-bold text-slate-700 max-md:text-base'>예정: <span id='temp-${s.code}' class="text-blue-600 font-black">0</span>p</span>
+                            <button onclick="applyPoints('${s.code}', '${s.name}', '${s.grade}')" class='bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold ml-auto cursor-pointer max-md:px-5 max-md:py-2.5 max-md:text-sm'>최종 지급</button>
+                            <button onclick="document.getElementById('temp-${s.code}').innerText='0'" class='text-gray-500 text-xs hover:underline cursor-pointer max-md:text-sm max-md:ml-2'>취소</button>
+                        </div>
+                    </div>
+                </div>
+            `).join(''); 
+        }
+
+        function togglePanel(code) { 
+            document.getElementById(`panel-${code}`).classList.toggle('hidden'); 
+        }
+
+        function updateTemp(code, p) { 
+            const el = document.getElementById(`temp-${code}`); 
+            el.innerText = parseInt(el.innerText) + p; 
+        }
+
+        // 관리자 모드: 포인트 지급 및 로그 작성
+        async function applyPoints(code, name, grade) { 
+            const el = document.getElementById(`temp-${code}`); 
+            const amount = parseInt(el.innerText); 
+            if (amount === 0) return; 
+
+            const { data: s, error: selectError } = await sb.from('students_point').select('points').eq('code', code).single(); 
+            if (selectError) return showToast("학생 정보를 불러오지 못했습니다.", "bg-red-500");
+
+            const { error: updateError } = await sb.from('students_point').update({ points: s.points + amount }).eq('code', code); 
+            if (updateError) return showToast("포인트 원장 수정에 실패했습니다.", "bg-red-500");
+
+            // 현재 접속자(currentAdmin)의 이름과 직함을 조합하여 표기합니다.
+const payerInfoText = currentAdmin ? `${currentAdmin.admin_name} ${currentAdmin.role_name}` : "알 수 없음";
+
+            const { error: logError } = await sb.from('point_logs').insert([{ 
+                student_name: name, 
+                student_grade: grade ? parseInt(grade) : null, 
+                amount: amount,
+                payer_info: payerInfoText
+            }]); 
+
+            if (logError) {
+                showToast(`지급 성공하나 로그오류`, "bg-red-500");
+                loadAdminData(); 
+                return;
+            }
+            
+            showToast("포인트 지급 및 로그 작성 완료!"); 
+            el.innerText = '0'; 
+            loadAdminData(); 
+        }
+
+        // 관리자 모드: 포인트 지급 로그 보기
         async function showLogs(tableName) {
             document.getElementById('log-view').classList.remove('hidden');
-            const { data: logs } = await sb.from(tableName).select('*').order('created_at', { ascending: false });
-            const { data: students } = await sb.from('students_point').select('name, grade');
+            document.getElementById('log-view').scrollIntoView({ behavior: 'smooth' });
             
+            const { data: logs, error } = await sb.from(tableName).select('*').order('created_at', { ascending: false });
+            if (error) return showToast("로그를 불러오지 못했습니다.", "bg-red-500");
+
             document.getElementById('log-title').innerText = '포인트 지급 로그';
-            document.getElementById('log-head').innerHTML = '<tr><th class="p-2 border">이름</th><th class="p-2 border">지급액</th><th class="p-2 border">일시</th></tr>';
+            document.getElementById('log-head').innerHTML = '<tr><th class="p-2 border">이름</th><th class="p-2 border">지급액</th><th class="p-2 border">일시</th><th class="p-2 border">지급자</th></tr>';
+            
             document.getElementById('log-content').innerHTML = (logs || []).map(l => {
-                const student = students.find(s => s.name === l.student_name);
-                const gradeInfo = student ? '초' + student.grade + ' ' : '';
-                return `<tr><td class="p-2 border">${gradeInfo}${l.student_name}</td><td class="p-2 border">${l.amount}p</td><td class="p-2 border text-xs">${new Date(l.created_at).toLocaleString()}</td></tr>`;
+                const gradeInfo = l.student_grade ? '초' + l.student_grade + ' ' : '';
+                return `
+                    <tr>
+                        <td class="p-2 border font-bold">${gradeInfo}${l.student_name}</td>
+                        <td class="p-2 border text-blue-600 font-bold">${l.amount}p</td>
+                        <td class="p-2 border text-[11px] text-gray-400 leading-tight">${new Date(l.created_at).toLocaleDateString ? new Date(l.created_at).toLocaleDateString() : ''}<br>${new Date(l.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                        <td class="p-2 border text-xs text-indigo-600 font-semibold">${l.payer_info || '-'}</td>
+                    </tr>
+                `;
             }).join('');
         }
 
-        // 기타 함수들 유지
-        sb.channel('purchase_logs').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'purchase_logs' }, payload => {
-            if (document.getElementById('admin-view').classList.contains('hidden')) return;
-            const p = payload.new;
-            const alertId = 'alert-' + p.id;
-            const div = document.createElement('div'); div.id = alertId; div.className = "alert-box"; 
-            div.innerHTML = `<div class="flex justify-between items-center"><div class="font-black text-red-600">🛒 ${p.student_grade ? '초' + p.student_grade + ' ' : ''}${p.student_name}</div><button onclick="updateLogStatus('${p.id}', '${alertId}')" class="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold">지급완료</button></div><div class="text-xs text-gray-500 mt-1">${p.items_detail}</div>`;
-            document.getElementById('alert-container').appendChild(div);
-        }).subscribe();
-
-        async function updateLogStatus(logId, elementId) {
-            await sb.from('purchase_logs').update({ status: '지급됨', updated_at: new Date().toISOString() }).eq('id', logId);
-            if (elementId !== 'none' && document.getElementById(elementId)) document.getElementById(elementId).remove();
-            showToast("지급 완료!");
-            if (!document.getElementById('log-view').classList.contains('hidden')) renderPurchaseLogTabs();
-        }
-
-        async function renderPurchaseLogTabs(filter = '미지급') {
-            const { data } = await sb.from('purchase_logs').select('*').order('created_at', { ascending: false });
+        // 관리자 모드: 상품 구매 로그 보기 및 탭 관리
+        async function renderPurchaseLogTabs(filter) {
             document.getElementById('log-view').classList.remove('hidden');
-            document.getElementById('log-title').innerHTML = `<div class="flex gap-4"><button onclick="renderPurchaseLogTabs('미지급')" class="${filter==='미지급'?'text-red-600 font-bold':''}">미지급</button><button onclick="renderPurchaseLogTabs('지급됨')" class="${filter==='지급됨'?'text-blue-600 font-bold':''}">지급됨</button></div>`;
-            document.getElementById('log-head').innerHTML = filter === '미지급' ? '<tr><th>이름</th><th>내역</th><th>구매일시</th><th>처리</th></tr>' : '<tr><th>이름</th><th>내역</th><th>구매일시</th><th>처리일시</th></tr>';
+            document.getElementById('log-view').scrollIntoView({ behavior: 'smooth' });
+
+            const { data, error } = await sb.from('purchase_logs').select('*').order('created_at', { ascending: false });
+            if (error) return showToast("구매로그 로드 실패", "bg-red-500");
+            
+            document.getElementById('log-title').innerHTML = `
+                <div class="flex gap-4 text-sm">
+                    <button onclick="renderPurchaseLogTabs('미지급')" class="cursor-pointer ${filter==='미지급'?'text-red-600 font-black border-b-2 border-red-600':'text-gray-400'} pb-1">미지급</button>
+                    <button onclick="renderPurchaseLogTabs('지급됨')" class="cursor-pointer ${filter==='지급됨'?'text-blue-600 font-black border-b-2 border-blue-600':'text-gray-400'} pb-1">지급완료 내역</button>
+                </div>
+            `;
+            
+            document.getElementById('log-head').innerHTML = filter === '미지급' 
+                ? '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리</th></tr>' 
+                : '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리일시</th></tr>';
+            
             document.getElementById('log-content').innerHTML = (data || []).filter(l => (l.status || '미지급') === filter).map(l => {
-                const created = new Date(l.created_at).toLocaleString();
-                const updated = l.updated_at ? new Date(l.updated_at).toLocaleString() : '-';
+                const created = new Date(l.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const updated = l.updated_at ? new Date(l.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
                 const nameDisplay = `${l.student_grade ? '초' + l.student_grade + ' ' : ''}${l.student_name}`;
-                if (filter === '미지급') {
-                    return `<tr><td class="p-2 border">${nameDisplay}</td><td class="p-2 border">${l.items_detail}</td><td class="p-2 border text-xs">${created}</td><td class="p-2 border text-center"><button onclick="updateLogStatus('${l.id}', 'none'); renderPurchaseLogTabs('${filter}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs">지급함</button></td></tr>`;
+                const alertId = 'alert-' + l.id;
+
+                let actionButtonHtml = "";
+                const isManager = currentAdmin && (currentAdmin.role_perm === '관리자 등급' || currentAdmin.role_perm === '최고 관리자 등급');
+
+                if (isManager) {
+                    actionButtonHtml = `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer active:bg-red-800">지급완료</button>`;
                 } else {
-                    return `<tr><td class="p-2 border">${nameDisplay}</td><td class="p-2 border">${l.items_detail}</td><td class="p-2 border text-xs">${created}</td><td class="p-2 border text-xs">${updated}</td></tr>`;
+                    actionButtonHtml = `<span class="text-xs text-gray-400 italic">권한없음</span>`;
                 }
+return filter === '미지급'
+                    ? `<tr><td class="p-2 border font-bold text-xs">${nameDisplay}<br><span class="text-[10px] text-gray-400 font-normal">${created}</span></td><td class="p-2 border text-xs">${l.items_detail}</td><td class="p-2 border">${actionButtonHtml}</td></tr>`
+                    : `<tr><td class="p-2 border font-bold text-gray-500 text-xs">${nameDisplay}</td><td class="p-2 border text-xs text-gray-400">${l.items_detail}</td><td class="p-2 border text-[11px] text-blue-600">${updated}</td></tr>`;
             }).join('');
         }
 
-        function showToast(msg, color = 'bg-blue-600') { const container = document.getElementById('toast-container'); const toast = document.createElement('div'); toast.className = `${color} text-white rounded-full shadow-lg font-bold pointer-events-auto toast-large`; toast.innerText = msg; container.appendChild(toast); setTimeout(() => toast.remove(), 2500); }
-        async function loadAdminData() { const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); const pOpts = [{v:100, l:'100p'}, {v:500, l:'500p'}, {v:1000, l:'1000p'}, {v:5000, l:'5000p'}, {v:2000, l:'생일'}, {v:-500, l:'-500p'}]; document.getElementById('admin-student-list').innerHTML = students.map(s => `<div class='border rounded-lg p-2 hover:bg-slate-50'><div onclick="togglePanel('${s.code}')" class='cursor-pointer font-bold flex justify-between items-center'><span>초${s.grade} / ${s.name} / ${s.code} / ${s.points}p</span> <button onclick="confirmDel('students_point', '${s.code}')" class='text-red-500 text-xs font-bold'>제거</button></div><div id="panel-${s.code}" class='hidden p-3 bg-blue-50 rounded mt-2'><div class='grid grid-cols-3 gap-2 mb-3'>${pOpts.map(o => `<button onclick="updateTemp('${s.code}', ${o.v})" class='bg-white px-2 py-2 border rounded text-xs font-bold'>${o.l}</button>`).join('')}</div><div class='flex items-center gap-2'><span class='text-sm font-bold'>예정: <span id='temp-${s.code}'>0</span>p</span><button onclick="applyPoints('${s.code}', '${s.name}', '${s.grade}')" class='bg-blue-600 text-white px-6 py-2 rounded text-sm font-bold ml-auto'>최종 지급</button><button onclick="document.getElementById('temp-${s.code}').innerText='0'" class='text-gray-500 text-xs'>취소</button></div></div></div>`).join(''); document.getElementById('admin-product-list').innerHTML = products.map((p, idx) => `<div class='flex justify-between border-b p-1 items-center text-sm'><span>${p.name} (${p.price}p)</span><div class="flex gap-1"><button onclick="moveOrder(${idx}, -1)" class="bg-gray-200 px-2 rounded">▲</button><button onclick="moveOrder(${idx}, 1)" class="bg-gray-200 px-2 rounded">▼</button><button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs ml-2'>제거</button></div></div>`).join(''); }
-        function togglePanel(code) { document.getElementById(`panel-${code}`).classList.toggle('hidden'); }
-        function updateTemp(code, p) { const el = document.getElementById(`temp-${code}`); el.innerText = parseInt(el.innerText) + p; }
-        async function applyPoints(code, name, grade) { const el = document.getElementById(`temp-${code}`); const amount = parseInt(el.innerText); if(amount === 0) return; const { data: s } = await sb.from('students_point').select('points').eq('code', code).single(); await sb.from('students_point').update({ points: s.points + amount }).eq('code', code); await sb.from('point_logs').insert([{ student_name: name, student_grade: parseInt(grade), amount: amount }]); showToast("지급 완료!"); el.innerText = '0'; loadAdminData(); }
-        async function moveOrder(index, direction) { const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); const targetIdx = index + direction; if (targetIdx < 0 || targetIdx >= products.length) return; const temp = products[index].display_order; await sb.from('items_point').update({ display_order: products[targetIdx].display_order }).eq('id', products[index].id); await sb.from('items_point').update({ display_order: temp }).eq('id', products[targetIdx].id); loadAdminData(); }
-        function keyInput(k) { const input = document.getElementById('code-input'); if(k === 'back') input.value = input.value.slice(0, -1); else if(input.value.length < 4) input.value += k; if(input.value.length === 4) checkStudent(input.value); }
-        async function checkStudent(c) { const { data } = await sb.from('students_point').select('*').eq('code', c).single(); if(data) { currentUser = data; document.getElementById('login-view').classList.add('hidden'); document.getElementById('shop-view').classList.remove('hidden'); document.getElementById('welcome-msg').innerText = `${data.name}님 환영합니다!`; document.getElementById('current-balance').innerText = `현재 잔액: ${data.points}p`; showToast(`${data.name}님 환영해요!`); loadShop(); startTimer(); } else { showToast("등록되지 않은 학생입니다!", "bg-red-500"); document.getElementById('code-input').value = ''; } }
-        async function loadShop() { const { data } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); document.getElementById('product-list').innerHTML = data.map(p => `<button onclick="addToCart('${p.name}', ${p.price})" class="p-6 bg-white border rounded-2xl font-bold">${p.name}<br>${p.price}p</button>`).join(''); }
-        function addToCart(n, p) { let item = cart.find(x => x.name === n); if(item) item.qty++; else cart.push({name: n, price: p, qty: 1}); renderCart(); }
-        function renderCart() { document.getElementById('cart-list').innerHTML = cart.map(i => `<div>${i.name} x${i.qty} (${i.price * i.qty}p)</div>`).join(''); document.getElementById('cart-total').innerText = cart.reduce((s,i) => s + (i.price * i.qty), 0); }
-        function clearCart() { cart = []; renderCart(); showToast("초기화 완료"); }
-        async function checkout() { 
-            if(cart.length === 0) return showToast("상품을 선택하세요!", "bg-red-500"); 
-            let total = cart.reduce((s,i) => s + (i.price * i.qty), 0); 
-            if(currentUser.points < total) return showToast("포인트가 부족해요!", "bg-red-500"); 
-            await sb.from('students_point').update({points: currentUser.points - total}).eq('code', currentUser.code); 
-            await sb.from('purchase_logs').insert([{ student_name: currentUser.name, student_grade: currentUser.grade, items_detail: cart.map(i=>`${i.name} ${i.qty}개`).join(', '), total_spent: total, remaining_points: currentUser.points - total, status: '미지급' }]); 
-            const btn = document.getElementById('checkout-btn'); btn.disabled = true; 
-            let count = 3; showToast("구매완료! 상품을 받아가세요", "bg-blue-600");
-            const interval = setInterval(() => { btn.innerText = `${count}초 후 메인으로 이동`; count--; if(count < 0) { clearInterval(interval); location.reload(); } }, 1000);
+        // 실시간 알림창 및 구매로그 탭 상태 동기화 처리
+        async function updateLogStatus(logId, elementId) {
+          const isTeacher = currentAdmin ? currentAdmin.role_perm === '선생님 등급' : true;
+
+if (isTeacher) {
+    actionButtonHtml = `<span class="text-xs text-gray-400 italic">권한없음</span>`;
+} else {
+    // 관리자 등급 또는 최고 관리자 등급인 경우에만 버튼 생성
+    actionButtonHtml = `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer active:bg-red-800">지급완료</button>`;
+}
+
+            await sb.from('purchase_logs').update({ status: '지급됨', updated_at: new Date().toISOString() }).eq('id', logId);
+            const el = document.getElementById(elementId);
+            if (el) el.remove();
+            showToast("상품 지급 처리가 완료되었습니다.");
+            
+            if (!document.getElementById('log-view').classList.contains('hidden')) {
+                renderPurchaseLogTabs('미지급');
+            }
+            loadAdminData();
         }
-        async function runUpgrade() { if(confirm("진급하시겠습니까?")) { await sb.rpc('increment_grades'); loadAdminData(); } }
-        async function confirmDel(t, k) { if(confirm("정말 제거하시겠습니까?")) { await sb.from(t).delete().eq(t==='students_point'?'code':'name', k); loadAdminData(); } }
-        async function addStudent() { await sb.from('students_point').insert([{grade: document.getElementById('st-grade').value, name: document.getElementById('st-name').value, code: document.getElementById('st-code').value, points: 0}]); loadAdminData(); }
-        async function addProduct() { await sb.from('items_point').insert([{name: document.getElementById('prod-name').value, price: document.getElementById('prod-price').value, display_order: 99}]); loadAdminData(); }
-        function startTimer() { if(timerInterval) clearInterval(timerInterval); let t = 60; timerInterval = setInterval(() => { t--; document.getElementById('timer-display').innerText = `남은 시간: ${t}초`; if(t <= 0) location.reload(); }, 1000); }
-        document.getElementById('admin-trigger').onclick = () => { clickCount++; if (clickCount >= 5) { if (prompt("관리자 비밀번호:") === "2580") { document.getElementById('login-view').classList.add('hidden'); document.getElementById('admin-view').classList.remove('hidden'); loadAdminData(); } clickCount = 0; } };
-    </script>
+
+        // 모바일 제어 추가: 로그 뷰 닫을 때 스크롤 복원
+        function closeLogViewMobile() {
+            document.getElementById('log-view').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 모바일 제어 추가: 하단 고정 바 탭 전환 스크립트
+        function switchMobileTab(tabName) {
+            document.querySelectorAll('.mobile-tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`mobile-tab-${tabName}`).classList.add('active');
+            
+            const tabs = ['students', 'products', 'logs'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`btn-nav-${t}`);
+                if (t === tabName) {
+                    btn.classList.add('text-blue-600', 'font-black');
+                    btn.classList.remove('text-slate-400', 'font-bold');
+                } else {
+                    btn.classList.remove('text-blue-600', 'font-black');
+                    btn.classList.add('text-slate-400', 'font-bold');
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 상품 표시 순서 이동 정렬
+        async function moveOrder(index, direction) { 
+            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
+            const targetIdx = index + direction; 
+            if (targetIdx < 0 || targetIdx >= products.length) return; 
+
+            const temp = products[index].display_order; 
+            await sb.from('items_point').update({ display_order: products[targetIdx].display_order }).eq('id', products[index].id); 
+            await sb.from('items_point').update({ display_order: temp }).eq('id', products[targetIdx].id); 
+            loadAdminData(); 
+        }
+
+        // 행 제거 공통 메서드
+        async function confirmDel(table, key) { 
+            if (confirm("정말 제거하시겠습니까?")) { 
+                await sb.from(table).delete().eq(table === 'students_point' ? 'code' : 'name', key); 
+                loadAdminData(); 
+            } 
+        }
+
+        // 신규 학생 등록
+        async function addStudent() { 
+            const grade = document.getElementById('st-grade').value;
+            const name = document.getElementById('st-name').value;
+            const code = document.getElementById('st-code').value;
+            if(!grade || !name || !code) return alert("빈칸을 모두 채워주세요.");
+
+            await sb.from('students_point').insert([{ grade: parseInt(grade), name, code, points: 0 }]); 
+            closeStudentModal(); 
+            showToast(`${name} 학생 등록 완료!`);
+            loadAdminData(); 
+        }
+
+        // 신규 상품 등록
+        async function addProduct() {
+            const name = document.getElementById('prod-name').value;
+            const price = document.getElementById('prod-price').value;
+            if(!name || !price) return alert("상품명과 가격을 입력해주세요.");
+
+            const { data } = await sb.from('items_point').select('display_order').order('display_order', {ascending: false}).limit(1);
+            const nextOrder = data && data.length > 0 ? data[0].display_order + 1 : 1;
+
+            await sb.from('items_point').insert([{ name, price: parseInt(price), display_order: nextOrder }]);
+            document.getElementById('prod-name').value = '';
+            document.getElementById('prod-price').value = '';
+            loadAdminData();
+        }
+
+        // 학년 진급 RPC 호출
+        async function runUpgrade() { 
+            if (confirm("진급하시겠습니까? 모든 학생의 학년이 1씩 증가합니다.")) { 
+                await sb.rpc('increment_grades'); 
+                loadAdminData(); 
+            } 
+        }
+</script>
 </body>
 </html>
