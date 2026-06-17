@@ -833,20 +833,24 @@ return filter === '미지급'
 
         // 실시간 알림창 및 구매로그 탭 상태 동기화 처리
         async function updateLogStatus(logId, elementId) {
-          const isTeacher = currentAdmin ? currentAdmin.role_perm === '선생님 등급' : true;
+            // 관리자 권한 확인
+            const isManager = currentAdmin && (currentAdmin.role_perm === '관리자 등급' || currentAdmin.role_perm === '최고 관리자 등급');
+            
+            if (!isManager) {
+                return showToast("권한이 없습니다.", "bg-red-500");
+            }
 
-if (isTeacher) {
-    actionButtonHtml = `<span class="text-xs text-gray-400 italic">권한없음</span>`;
-} else {
-    // 관리자 등급 또는 최고 관리자 등급인 경우에만 버튼 생성
-    actionButtonHtml = `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer active:bg-red-800">지급완료</button>`;
-}
-
-            await sb.from('purchase_logs').update({ status: '지급됨', updated_at: new Date().toISOString() }).eq('id', logId);
+            const { error } = await sb.from('purchase_logs')
+                .update({ status: '지급됨', updated_at: new Date().toISOString() })
+                .eq('id', logId);
+            
+            if (error) return showToast("처리 실패", "bg-red-500");
+            
             const el = document.getElementById(elementId);
             if (el) el.remove();
             showToast("상품 지급 처리가 완료되었습니다.");
             
+            // 구매로그 탭이 열려있다면 새로고침
             if (!document.getElementById('log-view').classList.contains('hidden')) {
                 renderPurchaseLogTabs('미지급');
             }
