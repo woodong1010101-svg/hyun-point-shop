@@ -843,56 +843,64 @@ const payerInfoText = currentAdmin ? `${currentAdmin.admin_name} ${currentAdmin.
 
         // 관리자 모드: 상품 구매 로그 보기 및 탭 관리
         async function renderPurchaseLogTabs(filter) {
-            document.getElementById('log-view').classList.remove('hidden');
-            document.getElementById('log-view').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('log-view').classList.remove('hidden');
+    document.getElementById('log-view').scrollIntoView({ behavior: 'smooth' });
 
-            const { data, error } = await sb.from('purchase_logs').select('*').order('created_at', { ascending: false });
-            if (error) return showToast("구매로그 로드 실패", "bg-red-500");
-            
-            document.getElementById('log-title').innerHTML = `
-                <div class="flex gap-4 text-sm">
-                    <button onclick="renderPurchaseLogTabs('미지급')" class="cursor-pointer ${filter==='미지급'?'text-red-600 font-black border-b-2 border-red-600':'text-gray-400'} pb-1">미지급</button>
-                    <button onclick="renderPurchaseLogTabs('지급됨')" class="cursor-pointer ${filter==='지급됨'?'text-blue-600 font-black border-b-2 border-blue-600':'text-gray-400'} pb-1">지급완료 내역</button>
-                </div>
-            `;
-            
-            document.getElementById('log-head').innerHTML = filter === '미지급' 
-                ? '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리</th></tr>' 
-                : '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리일시</th></tr>';
-            
-           document.getElementById('log-content').innerHTML = (data || []).filter(l => (l.status || '미지급') === filter).map(l => {
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '-';
-        const date = new Date(dateStr);
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        const h = date.getHours();
-        const min = String(date.getMinutes()).padStart(2, '0');
-        const ampm = h >= 12 ? '오후' : '오전';
-        const hour = String(h % 12 || 12).padStart(2, '0');
-        return `${y}. ${m}. ${d}, ${ampm} ${hour}:${min}`;
-    };
-
-    const created = formatDate(l.created_at);
-    const updated = formatDate(l.updated_at);
+    const { data, error } = await sb.from('purchase_logs').select('*').order('created_at', { ascending: false });
+    if (error) return showToast("구매로그 로드 실패", "bg-red-500");
     
-    const nameDisplay = `${l.student_grade ? '초' + l.student_grade + ' ' : ''}${l.student_name}`;
-    const alertId = 'alert-' + l.id;
+    // 타이틀 설정
+    document.getElementById('log-title').innerHTML = `
+        <div class="flex gap-4 text-sm">
+            <button onclick="renderPurchaseLogTabs('미지급')" class="cursor-pointer ${filter==='미지급'?'text-red-600 font-black border-b-2 border-red-600':'text-gray-400'} pb-1">미지급</button>
+            <button onclick="renderPurchaseLogTabs('지급됨')" class="cursor-pointer ${filter==='지급됨'?'text-blue-600 font-black border-b-2 border-blue-600':'text-gray-400'} pb-1">지급완료 내역</button>
+        </div>
+    `;
+    
+    // 헤더 설정 (여기서 탭에 따라 열 개수를 분기합니다)
+    document.getElementById('log-head').innerHTML = filter === '미지급' 
+        ? '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리</th></tr>' 
+        : '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">요청일시</th><th class="p-2 border">처리일시</th></tr>';
+    
+    // 본문 렌더링
+    document.getElementById('log-content').innerHTML = (data || []).filter(l => (l.status || '미지급') === filter).map(l => {
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = date.getHours();
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? '오후' : '오전';
+            const hour = String(h % 12 || 12).padStart(2, '0');
+            return `${y}. ${m}. ${d}, ${ampm} ${hour}:${min}`;
+        };
 
-    let actionButtonHtml = "";
-                const isManager = currentAdmin && (currentAdmin.role_perm === '관리자 등급' || currentAdmin.role_perm === '최고 관리자 등급');
+        const created = formatDate(l.created_at);
+        const updated = formatDate(l.updated_at);
+        const nameDisplay = `${l.student_grade ? '초' + l.student_grade + ' ' : ''}${l.student_name}`;
+        const alertId = 'alert-' + l.id;
 
-                if (isManager) {
-                    actionButtonHtml = `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer active:bg-red-800">지급완료</button>`;
-                } else {
-                    actionButtonHtml = `<span class="text-xs text-gray-400 italic">권한없음</span>`;
-                }
-return filter === '미지급'
-                    ? `<tr><td class="p-2 border font-bold text-xs">${nameDisplay}<br><span class="text-[10px] text-gray-400 font-normal">${created}</span></td><td class="p-2 border text-xs">${l.items_detail}</td><td class="p-2 border">${actionButtonHtml}</td></tr>`
-                    : `<tr><td class="p-2 border font-bold text-gray-500 text-xs">${nameDisplay}</td><td class="p-2 border text-xs text-gray-400">${l.items_detail}</td><td class="p-2 border text-[11px] text-blue-600">${updated}</td></tr>`;
-            }).join('');
-        }
+        const isManager = currentAdmin && (currentAdmin.role_perm === '관리자 등급' || currentAdmin.role_perm === '최고 관리자 등급');
+        const actionButtonHtml = isManager 
+            ? `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer active:bg-red-800">지급완료</button>` 
+            : `<span class="text-xs text-gray-400 italic">권한없음</span>`;
+
+        return filter === '미지급'
+            ? `<tr id="${alertId}">
+                <td class="p-2 border font-bold text-xs">${nameDisplay}<br><span class="text-[10px] text-gray-400 font-normal">${created}</span></td>
+                <td class="p-2 border text-xs">${l.items_detail}</td>
+                <td class="p-2 border">${actionButtonHtml}</td>
+               </tr>`
+            : `<tr>
+                <td class="p-2 border font-bold text-gray-500 text-xs">${nameDisplay}</td>
+                <td class="p-2 border text-xs text-gray-400">${l.items_detail}</td>
+                <td class="p-2 border text-[11px] text-gray-500">${created}</td>
+                <td class="p-2 border text-[11px] text-blue-600">${updated}</td>
+               </tr>`;
+    }).join('');
+}
 
         // 실시간 알림창 및 구매로그 탭 상태 동기화 처리
         async function updateLogStatus(logId, elementId) {
