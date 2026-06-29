@@ -711,6 +711,8 @@ if (staffBtn) {
 
         // 관리자 데이터 목록 출력
         async function loadAdminData() { 
+            await checkAndPayBirthdayPoints();
+
             const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); 
             const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
             
@@ -738,7 +740,68 @@ const staffBtn = document.getElementById('admin-staff-btn');
                 }
             }            // --- [추가 끝] ---
         }
+            async function checkAndPayBirthdayPoints() {
+    const today = new Date();
+    // MM-DD 형식으로 오늘 날짜 생성 ("0630")
+    const mmdd = String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
 
+    // 1. 오늘 생일인 학생 조회 (학년 정보인 grade도 함께 가져옵니다)
+    const { data: birthdayStudents, error: studentError } = await sb.from('students_point')
+        .select('code, name, points, grade')
+        .eq('birth_date', mmdd);
+
+    if (studentError) {
+        console.error("생일 학생 조회 실패:", studentError);
+        return;
+    }
+
+    if (!birthdayStudents || birthdayStudents.length === 0) return;
+
+    // 2. 이미 지급된 적이 있는지 확인 후 지급
+    for (const student of birthdayStudents) {
+        const { data: existingLog, error: logError } = await sb.from('point_logs')
+            .select('id')
+            .eq('student_name', student.name)
+            .eq('payer_info', '생일포인트')
+            .gte('created_at', new Date().toISOString().split('T')[0]); // 오늘 날짜 로그 확인
+
+        if (logError) {
+            console.error(`${student.name} 학생 로그 조회 실패:`, logError);
+            continue;
+        }
+
+        if (existingLog && existingLog.length > 0) {
+            console.log(`${student.name} 학생은 이미 오늘 생일 포인트를 받았습니다.`);
+            continue; 
+        }
+
+        // 3-1. 학생 포인트 직접 업데이트 (기존 포인트 + 2000)
+        const newPoints = Number(student.points || 0) + 2000;
+        const { error: updateError } = await sb.from('students_point')
+            .update({ points: newPoints })
+            .eq('code', student.code);
+
+        if (updateError) {
+            console.error(`${student.name} 학생 포인트 업데이트 실패:`, updateError);
+            continue;
+        }
+
+        // 3-2. 확인된 실제 컬럼명(student_name, student_grade, amount, payer_info)으로 로그 추가
+        const { error: insertLogError } = await sb.from('point_logs')
+            .insert([{
+                student_name: student.name,
+                student_grade: student.grade,
+                amount: 2000,
+                payer_info: '생일포인트'
+            }]);
+
+        if (insertLogError) {
+            console.error(`${student.name} 학생 로그 기록 실패:`, insertLogError);
+        } else {
+            console.log(`🎉 [자동 지급] ${student.name} 학생 생일 포인트 2000p 지급 및 로그 작성 완료!`);
+        }
+    }
+}
         // 실시간 학생 목록 검색/필터링 기능
         function filterStudents() {
             const query = document.getElementById('st-search').value.trim().toLowerCase();
