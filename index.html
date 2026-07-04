@@ -20,16 +20,17 @@
             scrollbar-width: thin;
         }
 
-        @media (max-width: 768px) {
-            #admin-view { padding: 1rem 1rem 5rem 1rem !important; }
-            .mobile-hide { display: none !important; }
-            .mobile-full-width { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
-            .mobile-touch-btn { padding-top: 0.8rem !important; padding-bottom: 0.8rem !important; font-size: 0.95rem !important; }
-            .mobile-grid-3 { grid-template-columns: repeat(3, 1fr) !important; gap: 0.5rem !important; }
-            .mobile-tab-content { display: none; }
-            .mobile-tab-content.active { display: flex !important; }
-            .shop-scroll-area { max-height: calc(100vh - 240px); }
-        }
+      @media (max-width: 768px) {
+    #admin-view { padding: 1rem 1rem 5rem 1rem !important; }
+    .mobile-hide { display: none !important; }
+    .mobile-touch-btn { padding-top: 0.8rem !important; padding-bottom: 0.8rem !important; font-size: 0.95rem !important; }
+    .mobile-grid-3 { grid-template-columns: repeat(3, 1fr) !important; gap: 0.5rem !important; }
+    
+    /* ⚠️ 이 부분을 반드시 아래와 같이 바꿔주세요 (flex-direction 추가) */
+    .mobile-tab-content { display: none !important; }
+    .mobile-tab-content.active { display: flex !important; flex-direction: column !important; width: 100% !important; }
+    .shop-scroll-area { max-height: calc(100vh - 240px); }
+}
     </style>
 </head>
 <body class="h-screen bg-slate-100 select-none">
@@ -154,7 +155,7 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-6 mobile-full-width">
+       <div class="flex flex-col lg:grid lg:grid-cols-2 gap-6 mobile-full-width">
             <!-- 학생 관리 탭 -->
             <div id="mobile-tab-students" class="mobile-tab-content active bg-white p-6 rounded-2xl border flex flex-col max-md:p-4">
                 <div class="flex justify-between items-center mb-4">
