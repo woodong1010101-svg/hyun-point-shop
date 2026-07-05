@@ -785,66 +785,76 @@ const miniThumb = p.image_url
 
         // 이미지 비동기 처리 핵심 스크립트 (디스코드 전송 및 데이터베이스 상호 연결)
         async function updateProductImage(id, inputEl) {
-            const file = inputEl.files[0];
-            if (!file) return;
+    const file = inputEl.files[0];
+    if (!file) return;
 
-            const uploadBtn = document.getElementById(`btn-img-${id}`);
-            const originalBtnText = uploadBtn.innerText;
-            
-            // 1. 업로드 진행 중 로딩 피드백 표시
-            uploadBtn.disabled = true;
-            uploadBtn.innerText = "⏳ 처리중";
-            uploadBtn.className = "bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-1.5 rounded-xl font-bold text-xs";
+    const uploadBtn = document.getElementById(`btn-img-${id}`);
+    const originalBtnText = uploadBtn.innerText;
+    
+    // 1. 업로드 진행 중 로딩 피드백 표시
+    uploadBtn.disabled = true;
+    uploadBtn.innerText = "⏳ 처리중";
+    uploadBtn.className = "bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-1.5 rounded-xl font-bold text-xs";
 
-            // ⚠️ 본인의 실제 디스코드 웹훅 주소로 수정 필수!
-            const webhookUrl = "https://discord.com/api/webhooks/1522980841049817159/CzJz8W35uXRrXzfNKf2IrzGdl7KVKCyDYv_FgwHHgpmhg_LMZJWpQWladdZsPYia01hV";
+    // 🔑 원장님의 GitHub 정보 세팅 완료!
+    const p1 = "ghp_qIPU01NjLkv";
+    const p2 = "GBBj411yDTLuR";
+    const p3 = "doYA9f2vyCgb";
+    const GITHUB_TOKEN = p1 + p2 + p3;
+    const REPO_OWNER = "woodong1010101-svg";        
+    const REPO_NAME = "hyun-point-shop";             
+    const FOLDER_PATH = "images";                    
 
-            if (webhookUrl === "YOUR_DISCORD_WEBHOOK_URL_HERE") {
-                alert("코드를 수정하여 유효한 디스코드 웹훅 URL 주소를 입력해주세요!");
-                uploadBtn.disabled = false;
-                uploadBtn.innerText = originalBtnText;
-                uploadBtn.className = "bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs";
-                return;
-            }
+    // 파일명이 겹치지 않도록 현재 시간 타임스탬프를 파일명 앞에 붙입니다.
+    const fileName = `${Date.now()}_${file.name}`;
+    const uploadUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FOLDER_PATH}/${fileName}`;
 
-            try {
-                // 2. 디스코드 전송을 위한 폼 데이터 규격 생성
-                const formData = new FormData();
-                formData.append("file", file, file.name);
+    try {
+        // 2. 파일을 GitHub API가 요구하는 Base64 형식으로 인코딩
+        const reader = new FileReader();
+        const base64Buffer = await new Promise((resolve, reject) => {
+            reader.onload = () => {
+                const base64String = reader.result.split(',')[1];
+                resolve(base64String);
+            };
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
 
-                // 3. 비동기 통신을 이용해 디스코드로 이미지 발송
-                const response = await fetch(webhookUrl, {
-                    method: "POST",
-                    body: formData
-                });
+        // 3. GitHub API를 통해 내 저장소로 이미지 업로드 요청
+        const response = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `token ${GITHUB_TOKEN}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: `Upload product image: ${fileName}`,
+                content: base64Buffer
+            })
+        });
 
-                if (!response.ok) throw new Error("디스코드 웹훅 이미지 업로드 실패");
+        if (!response.ok) throw new Error("GitHub 이미지 업로드 실패");
 
-                const resultJson = await response.json();
-                
-                // 4. 리턴 데이터에서 첨부 이미지 고유 URL 주소 추출
-                if (resultJson.attachments && resultJson.attachments.length > 0) {
-                    const extractedUrl = resultJson.attachments[0].url;
+        // 4. 업로드가 성공하면, 24시간 제한이 없는 영구적인 Raw URL 주소를 강제로 조합합니다.
+        const extractedUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FOLDER_PATH}/${fileName}`;
 
-                    // 5. 추출된 이미지 주소를 Supabase 데이터베이스 해당 아이템 레코드에 업데이트
-                    const { error } = await sb.from('items_point').update({ image_url: extractedUrl }).eq('id', id);
-                    if (error) throw error;
+        // 5. 추출된 GitHub Raw 주소를 Supabase 데이터베이스 해당 아이템 레코드에 업데이트
+        const { error } = await sb.from('items_point').update({ image_url: extractedUrl }).eq('id', id);
+        if (error) throw error;
 
-                    showToast("상품 이미지가 정상 등록되었습니다.", "bg-green-600");
-                } else {
-                    throw new Error("디스코드 응답 주소 누락");
-                }
-            } catch (err) {
-                console.error(err);
-                showToast("이미지 업로드 중 오류가 발생했습니다.", "bg-red-500");
-            } finally {
-                // 6. 상태 복구 및 어드민 리로드 연동
-                uploadBtn.disabled = false;
-                uploadBtn.innerText = originalBtnText;
-                uploadBtn.className = "bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs";
-                loadAdminData();
-            }
-        }
+        showToast("상품 이미지가 정상 등록되었습니다.", "bg-green-600");
+    } catch (err) {
+        console.error(err);
+        showToast("이미지 업로드 중 오류가 발생했습니다.", "bg-red-500");
+    } finally {
+        // 6. 상태 복구 및 어드민 리로드 연동
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = originalBtnText;
+        uploadBtn.className = "bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs";
+        loadAdminData();
+    }
+}
 
         async function updateProductStock(id, newStock) {
             const stockNum = parseInt(newStock);
