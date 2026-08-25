@@ -717,8 +717,6 @@
         }
 
         async function loadAdminData() { 
-            await checkAndPayBirthdayPoints();
-
             const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); 
             const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
             
@@ -760,9 +758,13 @@ const miniThumb = p.image_url
                         ${miniThumb}
                         <div class="flex flex-col min-w-0 flex-1">
                             <span class="font-bold text-slate-700 truncate">${p.name} <span class="text-blue-600 font-extrabold">(${p.price}p)</span></span>
-                            <div class="flex items-center gap-1 mt-1">
+                            <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                <span class="text-xs text-gray-400 font-bold">가격:</span>
+                                <input type="number" min="0" value="${p.price}" onchange="updateProductPrice('${p.id}', this.value)" class="w-20 p-1 text-center text-xs border rounded bg-white font-bold text-blue-600">
+                                <span class="text-xs text-gray-400">p</span>
+                                <span class="text-xs text-gray-300">|</span>
                                 <span class="text-xs text-gray-400 font-bold">재고:</span>
-                                <input type="number" value="${currentStock}" onchange="updateProductStock('${p.id}', this.value)" class="w-14 p-1 text-center text-xs border rounded bg-white font-bold text-slate-800">
+                                <input type="number" min="0" value="${currentStock}" onchange="updateProductStock('${p.id}', this.value)" class="w-14 p-1 text-center text-xs border rounded bg-white font-bold text-slate-800">
                                 <span class="text-xs text-gray-400">개</span>
                             </div>
                         </div>
@@ -865,6 +867,17 @@ const miniThumb = p.image_url
     }
 }
 
+        async function updateProductPrice(id, newPrice) {
+            const priceNum = parseInt(newPrice);
+            if (isNaN(priceNum) || priceNum < 0) return alert("올바른 상품 가격을 입력해주세요.");
+
+            const { error } = await sb.from('items_point').update({ price: priceNum }).eq('id', id);
+            if (error) return showToast("가격 변경 실패", "bg-red-500");
+
+            showToast("상품 가격이 수정되었습니다.", "bg-indigo-600");
+            await loadAdminData();
+        }
+
         async function updateProductStock(id, newStock) {
             const stockNum = parseInt(newStock);
             if (isNaN(stockNum) || stockNum < 0) return alert("올바른 재고 수량을 입력해주세요.");
@@ -873,7 +886,7 @@ const miniThumb = p.image_url
             if (error) return showToast("재고 변경 실패", "bg-red-500");
             
             showToast("재고 수량이 수정되었습니다.", "bg-indigo-600");
-            loadAdminData();
+            await loadAdminData();
         }
 
         async function toggleProductActive(id, checked) {
@@ -887,22 +900,8 @@ const miniThumb = p.image_url
             loadAdminData();
         }
 
-        async function checkAndPayBirthdayPoints() {
-            const today = new Date();
-            const mmdd = String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
-
-            const { data: birthdayStudents, error: studentError } = await sb.from('students_point').select('code, name, points, grade').eq('birth_date', mmdd);
-            if (studentError || !birthdayStudents || birthdayStudents.length === 0) return;
-
-            for (const student of birthdayStudents) {
-                const { data: existingLog } = await sb.from('point_logs').select('id').eq('student_name', student.name).eq('payer_info', '생일포인트').gte('created_at', new Date().toISOString().split('T')[0]);
-                if (existingLog && existingLog.length > 0) continue; 
-
-                const newPoints = Number(student.points || 0) + 2000;
-                await sb.from('students_point').update({ points: newPoints }).eq('code', student.code);
-                await sb.from('point_logs').insert([{ student_name: student.name, student_grade: student.grade, amount: 2000, payer_info: '생일포인트' }]);
-            }
-        }
+        // 생일포인트는 Supabase DB/스케줄러에서 자동 지급합니다.
+        // 관리자 페이지를 열지 않아도 지급되도록 브라우저의 자동 지급 로직은 제거했습니다.
 
         function filterStudents() {
             const query = document.getElementById('st-search').value.trim().toLowerCase();
