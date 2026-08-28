@@ -137,7 +137,7 @@
                 <button id="admin-staff-btn" onclick="openStaffModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors max-md:px-2 max-md:py-1.5 max-md:text-xs">선생님 관리</button>
                 <button onclick="showLogs('point_logs')" class="mobile-hide bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">포인트 지급로그</button>
                 <button onclick="renderPurchaseLogTabs('미지급')" class="mobile-hide bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">상품 구매로그</button>
-                <button id="desktop-upgrade-btn" onclick="runUpgrade()" class="hidden mobile-hide bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">학년 진급</button>
+                <button onclick="runUpgrade()" class="mobile-hide bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">학년 진급</button>
                 <button onclick="location.reload()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer max-md:px-2 max-md:py-1.5 max-md:text-xs">학생 화면</button>
             </div>
         </div>
@@ -170,15 +170,7 @@
 
             <!-- 상품 관리 탭 -->
           <div id="mobile-tab-products" class="mobile-tab-content bg-white p-6 rounded-2xl border max-md:p-4">
-    <div class="flex justify-between items-center gap-2 mb-4">
-        <div>
-            <h3 class="font-bold text-lg max-md:text-base text-slate-800">🎁 상품 관리</h3>
-            <p id="product-order-mode" class="text-xs text-slate-400 mt-1"></p>
-        </div>
-        <button onclick="resetProductAutoOrder()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-xl font-bold text-xs cursor-pointer flex-shrink-0">
-            가격순 자동정렬
-        </button>
-    </div>
+    <h3 class="font-bold mb-4 text-lg max-md:text-base text-slate-800">🎁 상품 관리</h3>
     
     <!-- 입력 폼: 모바일에서는 세로로 1열 정렬, 태블릿/PC에서는 가로 정렬 -->
     <div class="flex flex-col md:flex-row gap-2 mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-200 md:bg-transparent md:p-0 md:border-0">
@@ -209,7 +201,7 @@
                 <button onclick="showLogs('point_logs')" class="w-full p-4 bg-green-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-green-700">📈 포인트 지급로그 열기</button>
                 <button onclick="renderPurchaseLogTabs('미지급')" class="w-full p-4 bg-purple-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-purple-700">🛒 상품 구매로그 (지급 처리)</button>
                 <div class="border-t my-2"></div>
-                <button id="mobile-upgrade-btn" onclick="runUpgrade()" class="hidden w-full p-4 bg-yellow-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-yellow-700">🎓 전원 학년 진급 (정기 처리)</button>
+                <button onclick="runUpgrade()" class="w-full p-4 bg-yellow-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-yellow-700">🎓 전원 학년 진급 (정기 처리)</button>
             </div>
         </div>
     </div>
@@ -325,16 +317,12 @@
         let tempUser = null; 
         let currentAdmin = null; 
         let cart = [];
-        let isCheckingOut = false;
         let timerInterval;
         let timerCount = 60;
         let clickCount = 0;
         let allStudentsCache = [];
         let allProductsCache = [];
         let globalProductsCache = []; 
-        let productOrderMode = localStorage.getItem('pointShopProductOrderMode') === 'manual' ? 'manual' : 'auto';
-        let draggedProductElement = null;
-        let productOrderChanged = false;
 
         sb.channel('purchase_logs')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'purchase_logs' }, payload => {
@@ -515,84 +503,54 @@
         }
 
         async function checkout() {
-            // 첫 구매 요청이 처리되는 동안 추가 클릭/호출을 차단한다.
-            if (isCheckingOut) return;
             if (cart.length === 0) return showToast("상품을 선택하세요!", "bg-red-500");
             let total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
             if (currentUser.points < total) return showToast("포인트가 부족해요!", "bg-red-500");
 
-            const btn = document.getElementById('checkout-btn');
-            const originalBtnText = btn.innerText;
-            let purchaseSucceeded = false;
-
-            isCheckingOut = true;
-            btn.disabled = true;
-            btn.innerText = "구매 처리 중...";
-            btn.classList.add('opacity-60', 'cursor-not-allowed');
-
-            try {
-                const { data: currentItems, error: itemsError } = await sb.from('items_point').select('name, stock');
-                if (itemsError) throw itemsError;
-
-                for (let cartItem of cart) {
-                    const dbItem = currentItems.find(x => x.name === cartItem.name);
-                    if (dbItem && dbItem.stock !== null && dbItem.stock < cartItem.qty) {
-                        showToast(`[${cartItem.name}] 상품의 재고가 그새 부족해졌습니다!`, "bg-red-500");
-                        return;
-                    }
-                }
-
-                const { error: pointError } = await sb
-                    .from('students_point')
-                    .update({ points: currentUser.points - total })
-                    .eq('code', currentUser.code);
-                if (pointError) throw pointError;
-                
-                for (let cartItem of cart) {
-                    const dbItem = currentItems.find(x => x.name === cartItem.name);
-                    if (dbItem && dbItem.stock !== null) {
-                        const { error: stockError } = await sb
-                            .from('items_point')
-                            .update({ stock: dbItem.stock - cartItem.qty })
-                            .eq('name', cartItem.name);
-                        if (stockError) throw stockError;
-                    }
-                }
-
-                const { error: logError } = await sb.from('purchase_logs').insert([{ 
-                    student_name: currentUser.name, 
-                    student_grade: currentUser.grade, 
-                    items_detail: cart.map(i => `${i.name} ${i.qty}개`).join(', '), 
-                    total_spent: total, 
-                    remaining_points: currentUser.points - total, 
-                    status: '미지급' 
-                }]);
-                if (logError) throw logError;
-
-                purchaseSucceeded = true;
-                let count = 3; 
-                showToast("구매완료! 상품을 받아가세요", "bg-blue-600");
-                
-                const interval = setInterval(() => { 
-                    btn.innerText = `${count}초 후 메인으로 이동`; 
-                    count--; 
-                    if (count < 0) { 
-                        clearInterval(interval); 
-                        location.reload(); 
-                    } 
-                }, 1000);
-            } catch (err) {
-                console.error("구매 처리 실패:", err);
-                showToast("구매 처리 중 오류가 발생했습니다. 다시 시도해주세요.", "bg-red-500");
-            } finally {
-                // 실패한 경우에만 재시도를 허용한다. 성공 시에는 화면 이동까지 잠금을 유지한다.
-                if (!purchaseSucceeded) {
-                    isCheckingOut = false;
-                    btn.disabled = false;
-                    btn.innerText = originalBtnText;
-                    btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            const { data: currentItems } = await sb.from('items_point').select('name, stock');
+            for (let cartItem of cart) {
+                const dbItem = currentItems.find(x => x.name === cartItem.name);
+                if (dbItem && dbItem.stock !== null && dbItem.stock < cartItem.qty) {
+                    return showToast(`[${cartItem.name}] 상품의 재고가 그새 부족해졌습니다!`, "bg-red-500");
                 }
             }
+
+            const beforePoints = Number(currentUser.points || 0);
+            const afterPoints = beforePoints - total;
+            await sb.from('students_point').update({ points: afterPoints }).eq('code', currentUser.code);
+            
+            for (let cartItem of cart) {
+                const dbItem = currentItems.find(x => x.name === cartItem.name);
+                if (dbItem && dbItem.stock !== null) {
+                    await sb.from('items_point').update({ stock: dbItem.stock - cartItem.qty }).eq('name', cartItem.name);
+                }
+            }
+
+            await sb.from('purchase_logs').insert([{ 
+                student_name: currentUser.name, 
+                student_grade: currentUser.grade, 
+                items_detail: cart.map(i => `${i.name} ${i.qty}개`).join(', '), 
+                total_spent: total,
+                before_points: beforePoints,
+                after_points: afterPoints,
+                remaining_points: afterPoints, 
+                status: '미지급' 
+            }]);
+
+            const btn = document.getElementById('checkout-btn');
+            btn.disabled = true;
+            
+            let count = 3; 
+            showToast("구매완료! 상품을 받아가세요", "bg-blue-600");
+            
+            const interval = setInterval(() => { 
+                btn.innerText = `${count}초 후 메인으로 이동`; 
+                count--; 
+                if (count < 0) { 
+                    clearInterval(interval); 
+                    location.reload(); 
+                } 
+            }, 1000);
         }
 
         function handleAdminTrigger() {
@@ -629,7 +587,6 @@
                     document.getElementById('mobile-nav-bar').style.display = 'flex';
                 }
                 document.getElementById('admin-title-display').innerText = `${data.admin_name} ${data.role_name} 환영합니다`;
-                updateUpgradeButtonVisibility();
                 
                 const staffBtn = document.getElementById('admin-staff-btn');
                 if (staffBtn) {
@@ -765,57 +722,16 @@
 
         async function loadAdminData() { 
             const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); 
-            const { data: productsData } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
-            let products = productsData || [];
-
-            // 자동 모드에서는 판매 가능 상품을 가격 내림차순으로 두고,
-            // 품절 또는 비활성 상품을 목록 하단으로 이동한다.
-            if (productOrderMode === 'auto') {
-                products = getAutomaticallySortedProducts(products);
-                await saveProductDisplayOrder(products, false);
-            }
-             
+            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
+            
             allStudentsCache = students || []; 
-            allProductsCache = products; 
+            allProductsCache = products || []; 
             
             filterStudents(); 
             filterProducts(); 
         }
 
         // 관리자 상품 목록 렌더링 (미니 썸네일 노출 및 파일 업로드 트리거 연결)
-        function isProductUnavailable(product) {
-            return product.is_active === false || (product.stock !== null && Number(product.stock) <= 0);
-        }
-
-        function getAutomaticallySortedProducts(products) {
-            return [...products].sort((a, b) => {
-                const unavailableDiff = Number(isProductUnavailable(a)) - Number(isProductUnavailable(b));
-                if (unavailableDiff !== 0) return unavailableDiff;
-
-                const priceDiff = Number(b.price || 0) - Number(a.price || 0);
-                if (priceDiff !== 0) return priceDiff;
-
-                return String(a.name || '').localeCompare(String(b.name || ''), 'ko');
-            });
-        }
-
-        async function saveProductDisplayOrder(products, showMessage = true) {
-            const updates = products
-                .map((product, index) => ({ product, order: index + 1 }))
-                .filter(({ product, order }) => Number(product.display_order) !== order);
-
-            if (updates.length > 0) {
-                const results = await Promise.all(updates.map(({ product, order }) =>
-                    sb.from('items_point').update({ display_order: order }).eq('id', product.id)
-                ));
-                const failed = results.find(result => result.error);
-                if (failed) throw failed.error;
-            }
-
-            products.forEach((product, index) => { product.display_order = index + 1; });
-            if (showMessage) showToast("상품 순서가 저장되었습니다.", "bg-green-600");
-        }
-
         function filterProducts() {
             const query = document.getElementById('prod-search') ? document.getElementById('prod-search').value.trim().toLowerCase() : '';
             const filtered = allProductsCache.filter(p => p.name.toLowerCase().includes(query));
@@ -823,23 +739,16 @@
             const listEl = document.getElementById('admin-product-list');
             if (!listEl) return;
 
-            const orderModeEl = document.getElementById('product-order-mode');
-            if (orderModeEl) {
-                orderModeEl.innerText = productOrderMode === 'auto'
-                    ? '판매 가능 상품 · 가격 높은 순'
-                    : '사용자 지정 순서 · 손잡이를 드래그해 이동';
-            }
-
             if (filtered.length === 0) {
                 listEl.innerHTML = `<p class="text-sm text-center text-gray-400 py-4">일치하는 상품이 없습니다.</p>`;
                 return;
             }
 
-            listEl.innerHTML = filtered.map((p) => {
+            listEl.innerHTML = filtered.map((p, idx) => {
                 const isActive = p.is_active !== false; 
                 const statusClass = isActive ? 'bg-white border-slate-200' : 'bg-slate-200 border-slate-300 opacity-50';
                 const currentStock = p.stock !== null ? p.stock : 0;
-                const canDrag = query === '';
+                const showOrderBtns = query === ''; 
 
                 // 미니 썸네일 미리보기 컴포넌트
 const miniThumb = p.image_url 
@@ -847,9 +756,8 @@ const miniThumb = p.image_url
     : `<div class="w-10 h-10 bg-slate-100 rounded-lg border flex items-center justify-center text-gray-400 text-sm font-bold flex-shrink-0">X</div>`;
 
                 return `
-                <div data-product-id="${p.id}" ondragover="moveProductDuringDrag(event)" class='product-sort-item flex justify-between border rounded-xl p-3 items-center text-sm shadow-sm hover:border-slate-300 transition-all ${statusClass}'>
+                <div class='flex justify-between border rounded-xl p-3 items-center text-sm shadow-sm hover:border-slate-300 transition-all ${statusClass}'>
                     <div class="flex items-center gap-3 w-[65%] min-w-0">
-                        <span draggable="${canDrag}" ondragstart="startProductDrag(event)" ondragend="finishProductDrag(event)" onpointerdown="startProductPointerDrag(event)" onpointermove="moveProductPointerDrag(event)" onpointerup="finishProductPointerDrag(event)" onpointercancel="finishProductPointerDrag(event)" class="${canDrag ? 'cursor-grab active:cursor-grabbing touch-none' : 'cursor-not-allowed opacity-30'} select-none text-xl text-slate-400 px-1" title="드래그하여 이동" aria-label="상품 순서 이동">⠿</span>
                         <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleProductActive('${p.id}', this.checked)" class="w-5 h-5 cursor-pointer accent-blue-600 flex-shrink-0">
                         ${miniThumb}
                         <div class="flex flex-col min-w-0 flex-1">
@@ -870,6 +778,10 @@ const miniThumb = p.image_url
                         <input type="file" id="file-input-${p.id}" accept="image/*" class="hidden" onchange="updateProductImage('${p.id}', this)">
                         <button onclick="document.getElementById('file-input-${p.id}').click()" id="btn-img-${p.id}" class="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs hover:bg-blue-100 cursor-pointer transition-all">📁 사진</button>
                         
+                        ${showOrderBtns ? `
+                            <button onclick="moveOrder(${idx}, -1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer shadow-xs">▲</button>
+                            <button onclick="moveOrder(${idx}, 1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer shadow-xs">▼</button>
+                        ` : ''}
                         <button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs bg-red-50 px-2 py-1.5 rounded-xl hover:bg-red-100 cursor-pointer'>제거</button>
                     </div>
                 </div>
@@ -1038,11 +950,25 @@ const miniThumb = p.image_url
             const amount = parseInt(el.innerText); 
             if (amount === 0) return; 
 
-            const { data: s } = await sb.from('students_point').select('points').eq('code', code).single(); 
-            await sb.from('students_point').update({ points: s.points + amount }).eq('code', code); 
+            const { data: s, error: studentError } = await sb.from('students_point').select('points').eq('code', code).single();
+            if (studentError || !s) return showToast("학생 포인트 조회 실패", "bg-red-500");
+
+            const beforePoints = Number(s.points || 0);
+            const afterPoints = beforePoints + amount;
+
+            const { error: updateError } = await sb.from('students_point').update({ points: afterPoints }).eq('code', code);
+            if (updateError) return showToast("포인트 변경 실패", "bg-red-500");
 
             const payerInfoText = currentAdmin ? `${currentAdmin.admin_name} ${currentAdmin.role_name}` : "알 수 없음";
-            await sb.from('point_logs').insert([{ student_name: name, student_grade: grade ? parseInt(grade) : null, amount: amount, payer_info: payerInfoText }]); 
+            const { error: logError } = await sb.from('point_logs').insert([{
+                student_name: name,
+                student_grade: grade ? parseInt(grade) : null,
+                amount: amount,
+                before_points: beforePoints,
+                after_points: afterPoints,
+                payer_info: payerInfoText
+            }]);
+            if (logError) return showToast("포인트는 변경됐지만 로그 저장에 실패했습니다.", "bg-red-500");
             
             showToast("포인트 지급 및 로그 작성 완료!"); 
             el.innerText = '0'; 
@@ -1055,13 +981,17 @@ const miniThumb = p.image_url
             const { data: logs } = await sb.from(tableName).select('*').order('created_at', { ascending: false });
 
             document.getElementById('log-title').innerText = '포인트 지급 로그';
-            document.getElementById('log-head').innerHTML = '<tr><th class="p-2 border">이름</th><th class="p-2 border">지급액</th><th class="p-2 border">일시</th><th class="p-2 border">지급자</th></tr>';
+            document.getElementById('log-head').innerHTML = '<tr><th class="p-2 border">이름</th><th class="p-2 border">지급액</th><th class="p-2 border">지급 전</th><th class="p-2 border">지급 후</th><th class="p-2 border">일시</th><th class="p-2 border">지급자</th></tr>';
             document.getElementById('log-content').innerHTML = (logs || []).map(l => {
                 const gradeInfo = l.student_grade ? '초' + l.student_grade + ' ' : '';
+                const beforeText = l.before_points === null || l.before_points === undefined ? '-' : `${l.before_points}p`;
+                const afterText = l.after_points === null || l.after_points === undefined ? '-' : `${l.after_points}p`;
                 return `
                     <tr>
                         <td class="p-2 border font-bold">${gradeInfo}${l.student_name}</td>
                         <td class="p-2 border text-blue-600 font-bold">${l.amount}p</td>
+                        <td class="p-2 border text-right text-gray-500 font-semibold">${beforeText}</td>
+                        <td class="p-2 border text-right text-emerald-600 font-black">${afterText}</td>
                         <td class="p-2 border text-[11px] text-gray-400">${new Date(l.created_at).toLocaleDateString()} ${new Date(l.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>                                                                                             
                         <td class="p-2 border text-xs text-indigo-600 font-semibold">${l.payer_info || '-'}</td>
                     </tr>
@@ -1082,8 +1012,8 @@ const miniThumb = p.image_url
             `;
             
             document.getElementById('log-head').innerHTML = filter === '미지급' 
-                ? '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">처리</th></tr>' 
-                : '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">요청일시</th><th class="p-2 border">처리일시</th></tr>';
+                ? '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">구매 전</th><th class="p-2 border">사용</th><th class="p-2 border">구매 후</th><th class="p-2 border">처리</th></tr>' 
+                : '<tr><th class="p-2 border">이름</th><th class="p-2 border">내역</th><th class="p-2 border">구매 전</th><th class="p-2 border">사용</th><th class="p-2 border">구매 후</th><th class="p-2 border">요청일시</th><th class="p-2 border">처리일시</th></tr>';
             
             document.getElementById('log-content').innerHTML = (data || []).filter(l => (l.status || '미지급') === filter).map(l => {
                 const formatDate = (dateStr) => {
@@ -1095,16 +1025,27 @@ const miniThumb = p.image_url
                 const updated = formatDate(l.updated_at);
                 const alertId = 'alert-' + l.id;
                 const isManager = currentAdmin && (currentAdmin.role_perm === '관리자 등급' || currentAdmin.role_perm === '최고 관리자 등급');
+                const beforePoints = l.before_points ?? ((l.remaining_points !== null && l.remaining_points !== undefined) ? Number(l.remaining_points) + Number(l.total_spent || 0) : null);
+                const afterPoints = l.after_points ?? l.remaining_points ?? null;
+                const beforeText = beforePoints === null ? '-' : `${beforePoints}p`;
+                const afterText = afterPoints === null ? '-' : `${afterPoints}p`;
+                const spentText = l.total_spent === null || l.total_spent === undefined ? '-' : `-${l.total_spent}p`;
 
                 return filter === '미지급'
                     ? `<tr id="${alertId}">
                         <td class="p-2 border font-bold text-xs">${l.student_name}<br><span class="text-[10px] text-gray-400 font-normal">${created}</span></td>
                         <td class="p-2 border text-xs">${l.items_detail}</td>
+                        <td class="p-2 border text-right text-gray-500 font-semibold text-xs">${beforeText}</td>
+                        <td class="p-2 border text-right text-red-500 font-bold text-xs">${spentText}</td>
+                        <td class="p-2 border text-right text-emerald-600 font-black text-xs">${afterText}</td>
                         <td class="p-2 border">${isManager ? `<button onclick="updateLogStatus('${l.id}', '${alertId}')" class="bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer">지급완료</button>` : `<span class="text-xs text-gray-400 italic">권한없음</span>`}</td>
                        </tr>`
                     : `<tr>
                         <td class="p-2 border font-bold text-gray-500 text-xs">${l.student_name}</td>
                         <td class="p-2 border text-xs text-gray-400">${l.items_detail}</td>
+                        <td class="p-2 border text-right text-gray-500 font-semibold text-xs">${beforeText}</td>
+                        <td class="p-2 border text-right text-red-500 font-bold text-xs">${spentText}</td>
+                        <td class="p-2 border text-right text-emerald-600 font-black text-xs">${afterText}</td>
                         <td class="p-2 border text-[11px] text-gray-500">${created}</td>
                         <td class="p-2 border text-[11px] text-blue-600">${updated}</td>
                        </tr>`;
@@ -1139,111 +1080,15 @@ const miniThumb = p.image_url
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function startProductDrag(event) {
-            if (document.getElementById('prod-search').value.trim()) {
-                event.preventDefault();
-                return;
-            }
+        async function moveOrder(index, direction) { 
+            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
+            const targetIdx = index + direction; 
+            if (targetIdx < 0 || targetIdx >= products.length) return; 
 
-            draggedProductElement = event.currentTarget.closest('.product-sort-item');
-            productOrderChanged = false;
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', draggedProductElement.dataset.productId);
-            requestAnimationFrame(() => draggedProductElement?.classList.add('opacity-40', 'ring-2', 'ring-blue-300'));
-        }
-
-        function startProductPointerDrag(event) {
-            if (event.pointerType === 'mouse' || document.getElementById('prod-search').value.trim()) return;
-
-            draggedProductElement = event.currentTarget.closest('.product-sort-item');
-            productOrderChanged = false;
-            event.currentTarget.setPointerCapture(event.pointerId);
-            draggedProductElement.classList.add('opacity-40', 'ring-2', 'ring-blue-300');
-            event.preventDefault();
-        }
-
-        function moveProductPointerDrag(event) {
-            if (event.pointerType === 'mouse' || !draggedProductElement) return;
-            event.preventDefault();
-
-            const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.product-sort-item');
-            if (!target || target === draggedProductElement) return;
-
-            const rect = target.getBoundingClientRect();
-            const insertAfter = event.clientY > rect.top + rect.height / 2;
-            const referenceNode = insertAfter ? target.nextElementSibling : target;
-
-            if (referenceNode !== draggedProductElement) {
-                target.parentElement.insertBefore(draggedProductElement, referenceNode);
-                productOrderChanged = true;
-            }
-        }
-
-        function finishProductPointerDrag(event) {
-            if (event.pointerType === 'mouse' || !draggedProductElement) return;
-            finishProductDrag();
-        }
-
-        function moveProductDuringDrag(event) {
-            if (!draggedProductElement) return;
-            event.preventDefault();
-
-            const target = event.currentTarget;
-            if (target === draggedProductElement) return;
-
-            const rect = target.getBoundingClientRect();
-            const insertAfter = event.clientY > rect.top + rect.height / 2;
-            const referenceNode = insertAfter ? target.nextElementSibling : target;
-
-            if (referenceNode !== draggedProductElement) {
-                target.parentElement.insertBefore(draggedProductElement, referenceNode);
-                productOrderChanged = true;
-            }
-        }
-
-        async function finishProductDrag() {
-            if (!draggedProductElement) return;
-            draggedProductElement.classList.remove('opacity-40', 'ring-2', 'ring-blue-300');
-
-            const listEl = document.getElementById('admin-product-list');
-            const orderedIds = [...listEl.querySelectorAll('.product-sort-item')].map(el => el.dataset.productId);
-            draggedProductElement = null;
-
-            if (!productOrderChanged) return;
-
-            const orderedProducts = orderedIds
-                .map(id => allProductsCache.find(product => String(product.id) === String(id)))
-                .filter(Boolean);
-
-            try {
-                await saveProductDisplayOrder(orderedProducts);
-                productOrderMode = 'manual';
-                localStorage.setItem('pointShopProductOrderMode', 'manual');
-                allProductsCache = orderedProducts;
-                filterProducts();
-            } catch (err) {
-                console.error("상품 순서 저장 실패:", err);
-                showToast("상품 순서를 저장하지 못했습니다.", "bg-red-500");
-                loadAdminData();
-            } finally {
-                productOrderChanged = false;
-            }
-        }
-
-        async function resetProductAutoOrder() {
-            const automaticallySorted = getAutomaticallySortedProducts(allProductsCache);
-
-            try {
-                await saveProductDisplayOrder(automaticallySorted, false);
-                productOrderMode = 'auto';
-                localStorage.removeItem('pointShopProductOrderMode');
-                allProductsCache = automaticallySorted;
-                filterProducts();
-                showToast("가격순 자동정렬로 되돌렸습니다.", "bg-green-600");
-            } catch (err) {
-                console.error("자동 정렬 저장 실패:", err);
-                showToast("자동 정렬을 저장하지 못했습니다.", "bg-red-500");
-            }
+            const temp = products[index].display_order; 
+            await sb.from('items_point').update({ display_order: products[targetIdx].display_order }).eq('id', products[index].id); 
+            await sb.from('items_point').update({ display_order: temp }).eq('id', products[targetIdx].id); 
+            loadAdminData(); 
         }
 
         async function confirmDel(table, key) { 
@@ -1283,27 +1128,9 @@ const miniThumb = p.image_url
             showToast("새 상품이 등록되었습니다.");
         }
 
-        function canRunUpgrade() {
-            if (!currentAdmin) return false;
-            const permissionText = `${currentAdmin.role_perm || ''} ${currentAdmin.role_name || ''}`;
-            return permissionText.includes('관리자') || permissionText.includes('개발자');
-        }
-
-        function updateUpgradeButtonVisibility() {
-            const canUpgrade = canRunUpgrade();
-            ['desktop-upgrade-btn', 'mobile-upgrade-btn'].forEach(id => {
-                document.getElementById(id)?.classList.toggle('hidden', !canUpgrade);
-            });
-        }
-
         async function runUpgrade() { 
-            if (!canRunUpgrade()) {
-                return showToast("학년 진급 권한이 없습니다.", "bg-red-500");
-            }
             if (confirm("진급하시겠습니까? 모든 학생의 학년이 1씩 증가합니다.")) { 
-                const { error } = await sb.rpc('increment_grades');
-                if (error) return showToast("학년 진급 처리에 실패했습니다.", "bg-red-500");
-                showToast("전체 학생의 학년 진급이 완료되었습니다.", "bg-green-600");
+                await sb.rpc('increment_grades'); 
                 loadAdminData(); 
             } 
         }
