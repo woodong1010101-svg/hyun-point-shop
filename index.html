@@ -13,6 +13,26 @@
         #alert-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 375px; }
         .alert-box { background: white; border: 2px solid #dc2626; border-radius: 12px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 
+        @keyframes randomBoxShake {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            20% { transform: rotate(-8deg) scale(1.05); }
+            40% { transform: rotate(8deg) scale(1.08); }
+            60% { transform: rotate(-6deg) scale(1.08); }
+            80% { transform: rotate(6deg) scale(1.05); }
+        }
+        @keyframes randomPrizeReveal {
+            0% { opacity: 0; transform: scale(0.65) translateY(18px); }
+            70% { transform: scale(1.08) translateY(-3px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes randomBoxGlow {
+            0%, 100% { box-shadow: 0 0 0 rgba(147, 51, 234, 0); }
+            50% { box-shadow: 0 0 26px rgba(147, 51, 234, 0.38); }
+        }
+        .random-box-shake { animation: randomBoxShake 0.7s ease-in-out infinite; }
+        .random-prize-reveal { animation: randomPrizeReveal 0.55s ease-out both; }
+        .random-box-card { animation: randomBoxGlow 2.2s ease-in-out infinite; }
+
         /* 학생 상점 스크롤 기능 강화 */
         .shop-scroll-area {
             max-height: calc(100vh - 180px);
@@ -125,6 +145,17 @@
             <button onclick="clearCart()" class="w-full bg-red-600 text-white p-3 mb-2 rounded-xl font-bold text-lg cursor-pointer">전체 초기화</button>
             <p class="font-bold text-lg mb-4 text-center">합계: <span id="cart-total" class="text-blue-600">0</span>p</p>
             <button id="checkout-btn" onclick="checkout()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold text-lg cursor-pointer">구매하기</button>
+
+            <aside id="student-random-box-odds" class="mt-4 hidden rounded-2xl border-2 border-purple-300 bg-purple-50 p-3">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                        <p class="text-xs font-black text-purple-500">🎲 랜덤박스 안내</p>
+                        <h4 id="student-random-box-name" class="font-black text-purple-900"></h4>
+                    </div>
+                    <span id="student-random-box-limit" class="rounded-full bg-purple-700 px-2 py-1 text-[10px] font-black text-white">활성 기간 중 1회</span>
+                </div>
+                <div id="student-random-box-odds-list" class="grid grid-cols-2 gap-1.5"></div>
+            </aside>
         </div>
     </div>
 
@@ -225,6 +256,14 @@
         <button id="auto-sort-products-btn" onclick="autoSortProductsByPrice()" class="w-full sm:w-auto px-4 py-3 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-xl font-bold text-sm cursor-pointer disabled:cursor-wait transition-colors shadow-xs">
             ↓ 높은 가격순 자동정렬
         </button>
+    </div>
+
+    <div class="mb-3 flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <p class="font-black text-purple-900">🎲 랜덤박스 상품</p>
+            <p id="random-box-manager-status" class="mt-0.5 text-xs font-bold text-purple-600">랜덤박스를 만들고 당첨 상품과 확률을 관리할 수 있습니다.</p>
+        </div>
+        <button id="random-box-manager-btn" onclick="openRandomBoxManager()" class="w-full rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-black text-white hover:bg-purple-700 sm:w-auto">랜덤박스 만들기</button>
     </div>
 
     <!-- 상품 리스트 영역 -->
@@ -344,6 +383,68 @@
         </div>
     </div>
 
+    <!-- 랜덤박스 구성 모달 -->
+    <div id="random-box-config-modal" class="hidden fixed inset-0 z-[60] bg-black/55 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="flex h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border bg-white shadow-2xl">
+            <div class="flex items-start justify-between gap-4 border-b bg-purple-50 p-5">
+                <div>
+                    <h3 id="random-box-config-title" class="text-xl font-black text-purple-900">🎲 랜덤박스 만들기</h3>
+                    <p class="mt-1 text-sm font-semibold text-purple-600">랜덤박스 상품 하나를 만들고, 그 안에 들어갈 상품과 확률을 설정합니다.</p>
+                </div>
+                <button onclick="closeRandomBoxModal()" class="text-xl font-black text-slate-400 hover:text-slate-700">✕</button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 border-b bg-white p-5 sm:grid-cols-3">
+                <div>
+                    <label class="mb-1 block text-xs font-black text-slate-500">랜덤박스 상품명</label>
+                    <input id="random-box-name" value="랜덤박스" class="w-full rounded-xl border p-2.5 text-sm font-black outline-none focus:ring-2 focus:ring-purple-300">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-black text-slate-500">판매 가격(p)</label>
+                    <input id="random-box-price" type="number" min="0" placeholder="예: 1000" class="w-full rounded-xl border p-2.5 text-sm font-black text-purple-700 outline-none focus:ring-2 focus:ring-purple-300">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-black text-slate-500">판매 재고(개)</label>
+                    <input id="random-box-stock" type="number" min="0" placeholder="예: 10" class="w-full rounded-xl border p-2.5 text-sm font-black outline-none focus:ring-2 focus:ring-purple-300">
+                </div>
+                <label class="flex items-center gap-2 rounded-xl border border-purple-100 bg-purple-50 p-3 text-sm font-black text-purple-800 sm:col-span-3">
+                    <input id="random-box-active" type="checkbox" checked class="h-5 w-5 accent-purple-600">
+                    학생 상점에서 랜덤박스 활성화
+                </label>
+                <p class="text-xs font-bold text-slate-400 sm:col-span-3">이미지는 저장 후 상품 목록의 ‘사진’ 버튼에서 등록할 수 있습니다.</p>
+            </div>
+
+            <div class="flex items-center justify-between border-b bg-white px-5 py-3">
+                <span class="text-sm font-bold text-slate-600">당첨 상품 선택 · 확률 합계</span>
+                <span id="random-box-probability-total" class="rounded-full bg-red-100 px-3 py-1 text-sm font-black text-red-700">0%</span>
+            </div>
+
+            <div id="random-box-reward-list" class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-5"></div>
+
+            <div class="flex flex-wrap justify-between gap-2 border-t bg-white p-4">
+                <button id="random-box-clear-btn" onclick="clearRandomBoxConfig()" class="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-black text-red-600 hover:bg-red-100">랜덤박스 상품 삭제</button>
+                <div class="ml-auto flex gap-2">
+                    <button onclick="closeRandomBoxModal()" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-600 hover:bg-slate-200">취소</button>
+                    <button onclick="saveRandomBoxConfig()" class="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-black text-white hover:bg-purple-700">설정 저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 학생 랜덤박스 개봉 결과 -->
+    <div id="random-box-result-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-md">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-[2rem] border-4 border-purple-300 bg-gradient-to-b from-purple-900 via-indigo-900 to-slate-950 p-7 text-center text-white shadow-2xl">
+            <div class="absolute left-5 top-4 text-2xl">✨</div>
+            <div class="absolute right-7 top-8 text-xl">⭐</div>
+            <div class="absolute bottom-20 left-8 text-xl">🎊</div>
+            <div id="random-box-animation-icon" class="mx-auto mb-4 text-8xl random-box-shake">🎁</div>
+            <h3 id="random-box-result-title" class="text-2xl font-black">랜덤박스 개봉 중...</h3>
+            <p id="random-box-result-subtitle" class="mt-2 text-sm font-bold text-purple-200">어떤 상품이 나올까요?</p>
+            <div id="random-box-result-list" class="mt-5 space-y-2"></div>
+            <button id="random-box-result-close-btn" onclick="finishRandomBoxResult()" class="mt-6 hidden w-full rounded-2xl bg-white py-3 font-black text-purple-700 shadow-lg hover:bg-purple-50">확인하고 돌아가기</button>
+        </div>
+    </div>
+
     <div class="dev-tag">Developed by Woo</div>
 
     <script>
@@ -359,6 +460,8 @@
         let allStudentsCache = [];
         let allProductsCache = [];
         let globalProductsCache = []; 
+        let shopAllProductsCache = [];
+        let currentRandomBoxId = null;
 
         sb.channel('purchase_logs')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'purchase_logs' }, payload => {
@@ -490,6 +593,69 @@
             return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
         }
 
+        function parseRandomBoxRewards(product) {
+            let raw = product?.random_box_rewards;
+            if (!raw) return [];
+
+            if (typeof raw === 'string') {
+                try { raw = JSON.parse(raw); } catch (error) { return []; }
+            }
+            if (!Array.isArray(raw)) return [];
+
+            return raw.map(entry => ({
+                item_id: String(entry.item_id ?? entry.id ?? ''),
+                probability: Number(entry.probability ?? 0)
+            })).filter(entry => entry.item_id && Number.isFinite(entry.probability) && entry.probability > 0);
+        }
+
+        function formatProbability(value) {
+            return Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+        }
+
+        function getRandomBoxDetails(product, products = shopAllProductsCache.length ? shopAllProductsCache : allProductsCache) {
+            const rewards = parseRandomBoxRewards(product);
+            const entries = rewards.map(reward => ({
+                ...reward,
+                item: (products || []).find(item => String(item.id) === reward.item_id)
+            }));
+            const totalProbability = entries.reduce((sum, entry) => sum + entry.probability, 0);
+            // 비활성 상품도 랜덤박스 전용 당첨 상품으로 사용할 수 있으며, 재고 0만 지급 불가로 처리
+            const hasUnavailableReward = entries.some(entry => !entry.item || (entry.item.stock !== null && Number(entry.item.stock) <= 0));
+
+            return {
+                isRandomBox: rewards.length > 0,
+                entries,
+                totalProbability,
+                isValid: rewards.length >= 2 && Math.abs(totalProbability - 100) < 0.001 && !hasUnavailableReward
+            };
+        }
+
+        function secureRandomUnit() {
+            if (window.crypto?.getRandomValues) {
+                const values = new Uint32Array(1);
+                window.crypto.getRandomValues(values);
+                return values[0] / 4294967296;
+            }
+            return Math.random();
+        }
+
+        function pickRandomBoxReward(entries) {
+            const target = secureRandomUnit() * entries.reduce((sum, entry) => sum + entry.probability, 0);
+            let cumulative = 0;
+            for (const entry of entries) {
+                cumulative += entry.probability;
+                if (target < cumulative) return entry;
+            }
+            return entries[entries.length - 1];
+        }
+
+        function hasStudentPurchasedRandomBox(boxProduct, student = currentUser) {
+            if (!boxProduct || !student) return false;
+            const currentCycle = Number(boxProduct.random_box_cycle || 1);
+            return String(student.last_random_box_id || '') === String(boxProduct.id)
+                && Number(student.last_random_box_cycle || 0) === currentCycle;
+        }
+
         function renderTodayBirthdays(students) {
             const dateEl = document.getElementById('today-birthday-date');
             const countEl = document.getElementById('today-birthday-count');
@@ -568,12 +734,20 @@
 
         // 학생용 상점 리스트 바인딩 (가격 높은 순 자동 정렬)
         async function loadShop() {
-            const { data } = await sb.from('items_point').select('*').eq('is_active', true).order('price', { ascending: false }).order('name', { ascending: true });
+            const { data, error } = await sb.from('items_point').select('*').order('is_active', { ascending: false }).order('price', { ascending: false }).order('name', { ascending: true });
+            if (error) {
+                console.error('상품 로드 실패:', error);
+                return showToast("상품을 불러오지 못했습니다.", "bg-red-500");
+            }
             const syncedProducts = await syncOutOfStockProducts(data || []);
-            globalProductsCache = syncedProducts.filter(p => p.is_active !== false && !(p.stock !== null && Number(p.stock) <= 0));
+            shopAllProductsCache = syncedProducts.sort(compareProductsForDisplay);
+            globalProductsCache = shopAllProductsCache.filter(p => p.is_active !== false && !(p.stock !== null && Number(p.stock) <= 0));
+            renderStudentRandomBoxOdds();
             
             document.getElementById('product-list').innerHTML = globalProductsCache.map(p => {
                 const isSoldOut = p.stock !== null && Number(p.stock) <= 0;
+                const randomBox = getRandomBoxDetails(p, shopAllProductsCache);
+                const randomBoxAlreadyPurchased = randomBox.isRandomBox && hasStudentPurchasedRandomBox(p);
                 // 이미지가 없을 때 처리할 기본 대체 아이콘/배경
                 const imgTag = p.image_url 
     ? `<img src="${p.image_url}" class="w-full h-32 object-contain bg-white rounded-xl mb-3 p-1 shadow-xs">`
@@ -590,18 +764,63 @@
                         <span class="text-red-600 block text-base font-black mt-1">🚫 품절</span>
                     </button>
                     `;
+                } else if (randomBox.isRandomBox) {
+                    const stockText = p.stock !== null ? `<span class="text-xs text-gray-500 block mt-1">남은 개수: ${p.stock}개</span>` : '';
+                    const canBuyRandomBox = randomBox.isValid && !randomBoxAlreadyPurchased;
+                    return `
+                    <button ${canBuyRandomBox ? `onclick="addToCartById('${p.id}')"` : 'disabled'} class="random-box-card p-4 bg-gradient-to-b from-purple-50 to-white border-2 border-purple-400 hover:border-purple-600 rounded-2xl font-bold text-lg shadow-md transition-all text-center ${canBuyRandomBox ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} flex flex-col justify-between items-center h-full">
+                        <div class="w-full relative">
+                            ${imgTag}
+                            <span class="absolute left-2 top-2 rounded-full bg-purple-700 px-2.5 py-1 text-[11px] font-black text-white shadow">🎲 랜덤박스</span>
+                        </div>
+                        <span class="text-purple-900 block mt-1 w-full text-center truncate">${escapeHtml(p.name)}</span>
+                        <span class="text-purple-600 block text-base mt-1 font-black">${p.price}p</span>
+                        ${stockText}
+                        <span class="mt-2 rounded-full bg-purple-100 px-3 py-1 text-[11px] font-black text-purple-700">확률 안내판에서 확인</span>
+                        ${randomBoxAlreadyPurchased ? '<span class="mt-2 text-xs font-black text-emerald-600">이번 활성 기간 구매 완료</span>' : (randomBox.isValid ? '' : '<span class="mt-2 text-xs font-black text-red-500">구성 또는 재고 확인 필요</span>')}
+                    </button>
+                    `;
                 } else {
                     const stockText = p.stock !== null ? `<span class="text-xs text-gray-500 block mt-1">남은 개수: ${p.stock}개</span>` : '';
                     return `
-                    <button onclick="addToCart('${p.name}', ${p.price}, ${p.stock})" class="p-4 bg-white border-2 border-slate-200 hover:border-blue-400 rounded-2xl font-bold text-lg shadow-sm transition-all text-center cursor-pointer flex flex-col justify-between items-center h-full">
+                    <button onclick="addToCartById('${p.id}')" class="p-4 bg-white border-2 border-slate-200 hover:border-blue-400 rounded-2xl font-bold text-lg shadow-sm transition-all text-center cursor-pointer flex flex-col justify-between items-center h-full">
                         <div class="w-full">${imgTag}</div>
-                        <span class="text-slate-800 block mt-1 w-full text-center truncate">${p.name}</span>
+                        <span class="text-slate-800 block mt-1 w-full text-center truncate">${escapeHtml(p.name)}</span>
                         <span class="text-blue-600 block text-base mt-1 font-black">${p.price}p</span>
                         ${stockText}
                     </button>
                     `;
                 }
             }).join('');
+        }
+
+        function renderStudentRandomBoxOdds() {
+            const panel = document.getElementById('student-random-box-odds');
+            const nameEl = document.getElementById('student-random-box-name');
+            const listEl = document.getElementById('student-random-box-odds-list');
+            const limitEl = document.getElementById('student-random-box-limit');
+            if (!panel || !nameEl || !listEl || !limitEl) return;
+
+            const boxProduct = findRandomBoxProduct(shopAllProductsCache);
+            const details = boxProduct ? getRandomBoxDetails(boxProduct, shopAllProductsCache) : null;
+            const shouldShow = Boolean(boxProduct && boxProduct.is_active !== false && (boxProduct.stock === null || Number(boxProduct.stock) > 0) && details?.isRandomBox);
+            panel.classList.toggle('hidden', !shouldShow);
+            if (!shouldShow) {
+                nameEl.textContent = '';
+                listEl.innerHTML = '';
+                return;
+            }
+
+            nameEl.textContent = boxProduct.name;
+            const alreadyPurchased = hasStudentPurchasedRandomBox(boxProduct);
+            limitEl.textContent = alreadyPurchased ? '이번 회차 구매 완료' : '활성 기간 중 1회';
+            limitEl.className = `rounded-full px-2 py-1 text-[10px] font-black text-white ${alreadyPurchased ? 'bg-emerald-600' : 'bg-purple-700'}`;
+            listEl.innerHTML = details.entries.map(entry => `
+                <div class="flex min-w-0 items-center justify-between gap-1 rounded-lg border border-purple-200 bg-white px-2 py-1.5 text-[10px] font-bold">
+                    <span class="min-w-0 break-words leading-tight text-slate-700">${escapeHtml(entry.item?.name || '삭제된 상품')}</span>
+                    <span class="flex-shrink-0 font-black text-purple-700">${formatProbability(entry.probability)}%</span>
+                </div>
+            `).join('');
         }
 
         function startTimer() {
@@ -620,9 +839,34 @@
             location.reload();
         }
 
-        function addToCart(name, price, maxStock) {
+        function addToCartById(itemId) {
+            const product = shopAllProductsCache.find(item => String(item.id) === String(itemId));
+            if (!product) return showToast("상품 정보를 찾을 수 없습니다.", "bg-red-500");
+
+            const randomBox = getRandomBoxDetails(product, shopAllProductsCache);
+            if (randomBox.isRandomBox && !randomBox.isValid) {
+                return showToast("랜덤박스 구성이나 당첨 상품 재고를 확인해주세요.", "bg-red-500");
+            }
+            if (randomBox.isRandomBox && hasStudentPurchasedRandomBox(product)) {
+                return showToast("이번 랜덤박스 활성 기간에는 이미 구매했습니다.", "bg-purple-600");
+            }
+            addToCart(product.name, Number(product.price), product.stock, product.id, randomBox.isRandomBox);
+        }
+
+        function addToCart(name, price, maxStock, itemId, isRandomBox = false) {
             startTimer();
-            let item = cart.find(x => x.name === name);
+            const hasRandomBoxInCart = cart.some(cartItem => cartItem.isRandomBox);
+            const hasRegularProductInCart = cart.some(cartItem => !cartItem.isRandomBox);
+            if (isRandomBox && hasRegularProductInCart) {
+                return showToast("일반 상품이 담겨 있어 랜덤박스를 추가할 수 없습니다. 장바구니를 먼저 비워주세요.", "bg-purple-600");
+            }
+            if (!isRandomBox && hasRandomBoxInCart) {
+                return showToast("랜덤박스는 다른 상품과 함께 담을 수 없습니다. 장바구니를 먼저 비워주세요.", "bg-purple-600");
+            }
+            let item = cart.find(x => String(x.itemId) === String(itemId));
+            if (isRandomBox && (item || cart.some(cartItem => cartItem.isRandomBox))) {
+                return showToast("랜덤박스는 한 번에 최대 1개만 담을 수 있습니다.", "bg-purple-600");
+            }
             if (item) {
                 if (maxStock !== null && item.qty >= maxStock) {
                     return showToast("재고가 부족하여 더 담을 수 없습니다!", "bg-red-500");
@@ -630,7 +874,7 @@
                 item.qty++;
             } else {
                 if (maxStock !== null && maxStock <= 0) return showToast("품절된 상품입니다.", "bg-red-500");
-                cart.push({ name, price, qty: 1, maxStock });
+                cart.push({ name, price, qty: 1, maxStock, itemId, isRandomBox });
             }
             renderCart();
         }
@@ -638,7 +882,7 @@
         function renderCart() {
             document.getElementById('cart-list').innerHTML = cart.map(i => `
                 <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg text-sm font-semibold border">
-                    <span>${i.name} x${i.qty}</span>
+                    <span>${i.isRandomBox ? '🎲 ' : ''}${escapeHtml(i.name)} x${i.qty}</span>
                     <span class="text-blue-600">${i.price * i.qty}p</span>
                 </div>
             `).join('');
@@ -653,35 +897,114 @@
 
         async function checkout() {
             if (cart.length === 0) return showToast("상품을 선택하세요!", "bg-red-500");
+            const hasRandomBoxInCart = cart.some(item => item.isRandomBox);
+            const hasRegularProductInCart = cart.some(item => !item.isRandomBox);
+            if (hasRandomBoxInCart && hasRegularProductInCart) {
+                return showToast("랜덤박스와 일반 상품은 함께 구매할 수 없습니다.", "bg-purple-600");
+            }
+            if (cart.some(item => item.isRandomBox && item.qty > 1) || cart.filter(item => item.isRandomBox).length > 1) {
+                return showToast("랜덤박스는 한 번에 최대 1개만 구매할 수 있습니다.", "bg-purple-600");
+            }
             let total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
             if (currentUser.points < total) return showToast("포인트가 부족해요!", "bg-red-500");
 
-            const { data: currentItems } = await sb.from('items_point').select('name, stock');
+            const { data: currentItems, error: itemLoadError } = await sb.from('items_point').select('*');
+            if (itemLoadError || !currentItems) return showToast("상품 정보를 다시 불러오지 못했습니다.", "bg-red-500");
+
+            const randomCartItem = cart.find(item => item.isRandomBox);
+            if (randomCartItem) {
+                const currentBox = currentItems.find(item => String(item.id) === String(randomCartItem.itemId));
+                const { data: purchaseState, error: purchaseStateError } = await sb.from('students_point')
+                    .select('last_random_box_id, last_random_box_cycle')
+                    .eq('code', currentUser.code)
+                    .single();
+                if (purchaseStateError) {
+                    console.error('랜덤박스 구매 상태 확인 실패:', purchaseStateError);
+                    alert("랜덤박스 회차 구매 제한을 확인하지 못했습니다. 최신 Supabase 설정 SQL을 다시 실행해주세요.");
+                    return;
+                }
+                if (hasStudentPurchasedRandomBox(currentBox, purchaseState)) {
+                    return showToast("이번 랜덤박스 활성 기간에는 이미 구매했습니다.", "bg-purple-600");
+                }
+            }
+
+            const stockUsage = new Map();
+            const randomResults = [];
+
             for (let cartItem of cart) {
-                const dbItem = currentItems.find(x => x.name === cartItem.name);
-                if (dbItem && dbItem.stock !== null && dbItem.stock < cartItem.qty) {
-                    return showToast(`[${cartItem.name}] 상품의 재고가 그새 부족해졌습니다!`, "bg-red-500");
+                const dbItem = currentItems.find(x => String(x.id) === String(cartItem.itemId)) || currentItems.find(x => x.name === cartItem.name);
+                if (!dbItem || dbItem.is_active === false) {
+                    return showToast(`[${cartItem.name}] 상품을 현재 구매할 수 없습니다.`, "bg-red-500");
+                }
+
+                const itemKey = String(dbItem.id);
+                stockUsage.set(itemKey, (stockUsage.get(itemKey) || 0) + cartItem.qty);
+
+                const randomBox = getRandomBoxDetails(dbItem, currentItems);
+                if (randomBox.isRandomBox) {
+                    if (!randomBox.isValid) {
+                        return showToast(`[${cartItem.name}] 랜덤박스 구성이나 당첨 상품 재고를 확인해주세요.`, "bg-red-500");
+                    }
+
+                    for (let draw = 0; draw < cartItem.qty; draw++) {
+                        const selectedReward = pickRandomBoxReward(randomBox.entries);
+                        const rewardKey = String(selectedReward.item.id);
+                        // 후보 전체가 아니라 실제로 당첨된 상품만 1개씩 재고 차감 목록에 추가
+                        stockUsage.set(rewardKey, (stockUsage.get(rewardKey) || 0) + 1);
+                        randomResults.push({
+                            boxId: itemKey,
+                            boxName: dbItem.name,
+                            rewardId: rewardKey,
+                            rewardName: selectedReward.item.name
+                        });
+                    }
+                }
+            }
+
+            for (const [itemId, quantity] of stockUsage.entries()) {
+                const dbItem = currentItems.find(item => String(item.id) === itemId);
+                if (!dbItem) return showToast("구매 상품 정보를 찾을 수 없습니다.", "bg-red-500");
+                if (dbItem.stock !== null && Number(dbItem.stock) < quantity) {
+                    return showToast(`[${dbItem.name}] 재고가 부족합니다. 관리자에게 알려주세요.`, "bg-red-500");
                 }
             }
 
             const beforePoints = Number(currentUser.points || 0);
             const afterPoints = beforePoints - total;
-            await sb.from('students_point').update({ points: afterPoints }).eq('code', currentUser.code);
+            const studentUpdate = { points: afterPoints };
+            if (randomResults.length > 0) {
+                const purchasedBox = currentItems.find(item => String(item.id) === String(randomResults[0].boxId));
+                studentUpdate.last_random_box_id = String(purchasedBox.id);
+                studentUpdate.last_random_box_cycle = Number(purchasedBox.random_box_cycle || 1);
+            }
+            const { error: pointUpdateError } = await sb.from('students_point').update(studentUpdate).eq('code', currentUser.code);
+            if (pointUpdateError) return showToast("포인트 차감에 실패했습니다.", "bg-red-500");
+            Object.assign(currentUser, studentUpdate);
             
-            for (let cartItem of cart) {
-                const dbItem = currentItems.find(x => x.name === cartItem.name);
+            for (const [itemId, quantity] of stockUsage.entries()) {
+                const dbItem = currentItems.find(item => String(item.id) === itemId);
                 if (dbItem && dbItem.stock !== null) {
-                    const remainingStock = Math.max(0, Number(dbItem.stock) - cartItem.qty);
+                    const remainingStock = Math.max(0, Number(dbItem.stock) - quantity);
                     const stockUpdate = { stock: remainingStock };
                     if (remainingStock === 0) stockUpdate.is_active = false;
-                    await sb.from('items_point').update(stockUpdate).eq('name', cartItem.name);
+                    await sb.from('items_point').update(stockUpdate).eq('id', dbItem.id);
+                }
+            }
+
+            const logItems = [];
+            for (const cartItem of cart) {
+                const itemResults = randomResults.filter(result => String(result.boxId) === String(cartItem.itemId));
+                if (itemResults.length > 0) {
+                    itemResults.forEach(result => logItems.push(`${result.boxName}(${result.rewardName})`));
+                } else {
+                    logItems.push(`${cartItem.name} ${cartItem.qty}개`);
                 }
             }
 
             await sb.from('purchase_logs').insert([{ 
                 student_name: currentUser.name, 
                 student_grade: currentUser.grade, 
-                items_detail: cart.map(i => `${i.name} ${i.qty}개`).join(', '), 
+                items_detail: logItems.join(', '), 
                 total_spent: total,
                 before_points: beforePoints,
                 after_points: afterPoints,
@@ -691,6 +1014,12 @@
 
             const btn = document.getElementById('checkout-btn');
             btn.disabled = true;
+            clearInterval(timerInterval);
+
+            if (randomResults.length > 0) {
+                showRandomBoxResultAnimation(randomResults);
+                return;
+            }
             
             let count = 3; 
             showToast("구매완료! 상품을 받아가세요", "bg-blue-600");
@@ -703,6 +1032,41 @@
                     location.reload(); 
                 } 
             }, 1000);
+        }
+
+        function showRandomBoxResultAnimation(results) {
+            const modal = document.getElementById('random-box-result-modal');
+            const icon = document.getElementById('random-box-animation-icon');
+            const title = document.getElementById('random-box-result-title');
+            const subtitle = document.getElementById('random-box-result-subtitle');
+            const list = document.getElementById('random-box-result-list');
+            const closeBtn = document.getElementById('random-box-result-close-btn');
+
+            icon.textContent = '🎁';
+            icon.className = 'mx-auto mb-4 text-8xl random-box-shake';
+            title.textContent = '랜덤박스 개봉 중...';
+            subtitle.textContent = '어떤 상품이 나올까요?';
+            list.innerHTML = '';
+            closeBtn.classList.add('hidden');
+            modal.classList.remove('hidden');
+
+            setTimeout(() => {
+                icon.textContent = '🎉';
+                icon.className = 'mx-auto mb-4 text-8xl random-prize-reveal';
+                title.textContent = '축하합니다!';
+                subtitle.textContent = '랜덤박스 당첨 결과';
+                list.innerHTML = results.map((result, index) => `
+                    <div class="random-prize-reveal rounded-2xl border border-purple-300/50 bg-white/10 p-4" style="animation-delay: ${index * 120}ms">
+                        <p class="text-xs font-bold text-purple-200">${escapeHtml(result.boxName)}</p>
+                        <p class="mt-1 text-xl font-black text-yellow-300">${escapeHtml(result.rewardName)}</p>
+                    </div>
+                `).join('');
+                closeBtn.classList.remove('hidden');
+            }, 1500);
+        }
+
+        function finishRandomBoxResult() {
+            location.reload();
         }
 
         function handleAdminTrigger() {
@@ -799,6 +1163,7 @@
                 closeStudentModal();
                 closeAdminModal();
                 closeMyAccountModal();
+                closeRandomBoxModal();
             }
         });
 
@@ -893,6 +1258,7 @@
             const syncedProducts = await syncOutOfStockProducts(products || []); 
             allProductsCache = syncedProducts.sort(compareProductsForDisplay); 
             renderTodayBirthdays(allStudentsCache);
+            updateRandomBoxManagerUI();
             
             filterStudents(); 
             filterProducts(); 
@@ -913,6 +1279,7 @@
 
             listEl.innerHTML = filtered.map((p, idx) => {
                 const isActive = p.is_active !== false; 
+                const isRandomBox = parseRandomBoxRewards(p).length > 0;
                 const statusClass = isActive ? 'bg-white border-slate-200' : 'bg-slate-200 border-slate-300 opacity-50';
                 const currentStock = p.stock !== null ? p.stock : 0;
 
@@ -923,11 +1290,11 @@ const miniThumb = p.image_url
 
                 return `
                 <div class='flex justify-between border rounded-xl p-3 items-center text-sm shadow-sm hover:border-slate-300 transition-all ${statusClass}'>
-                    <div class="flex items-center gap-3 w-[65%] min-w-0">
+                    <div class="flex items-center gap-3 w-[58%] md:w-[65%] min-w-0">
                         <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleProductActive('${p.id}', this.checked)" class="w-5 h-5 cursor-pointer accent-blue-600 flex-shrink-0">
                         ${miniThumb}
                         <div class="flex flex-col min-w-0 flex-1">
-                            <span class="font-bold text-slate-700 truncate">${p.name} <span class="text-blue-600 font-extrabold">(${p.price}p)</span></span>
+                            <span class="font-bold text-slate-700 truncate">${p.name} <span class="text-blue-600 font-extrabold">(${p.price}p)</span> ${isRandomBox ? '<span class="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-black text-purple-700">🎲 랜덤박스</span>' : ''}</span>
                             <div class="flex items-center gap-2 mt-1 flex-wrap">
                                 <span class="text-xs text-gray-400 font-bold">가격:</span>
                                 <input type="number" min="0" value="${p.price}" onchange="updateProductPrice('${p.id}', this.value)" class="w-20 p-1 text-center text-xs border rounded bg-white font-bold text-blue-600">
@@ -939,7 +1306,7 @@ const miniThumb = p.image_url
                             </div>
                         </div>
                     </div>
-                    <div class="flex gap-1 items-center flex-shrink-0">
+                    <div class="flex max-w-[42%] flex-wrap justify-end gap-1 items-center flex-shrink-0">
                         <!-- 이미지 업로드 전용 숨김 파일 인풋 및 커스텀 버튼 디자인 버튼 조립 -->
                         <input type="file" id="file-input-${p.id}" accept="image/*" class="hidden" onchange="updateProductImage('${p.id}', this)">
                         <button onclick="document.getElementById('file-input-${p.id}').click()" id="btn-img-${p.id}" class="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs hover:bg-blue-100 cursor-pointer transition-all">📁 사진</button>
@@ -949,6 +1316,186 @@ const miniThumb = p.image_url
                 </div>
                 `;
             }).join(''); 
+        }
+
+        function findRandomBoxProduct(products = allProductsCache) {
+            const configuredBox = (products || []).find(item => parseRandomBoxRewards(item).length > 0);
+            if (configuredBox) return configuredBox;
+
+            // 기존에 일반 상품으로 '랜덤박스'를 만들어 둔 경우 새로 중복 생성하지 않고 재사용
+            return (products || []).find(item => String(item.name || '').trim() === '랜덤박스') || null;
+        }
+
+        function updateRandomBoxManagerUI() {
+            const boxProduct = findRandomBoxProduct();
+            const statusEl = document.getElementById('random-box-manager-status');
+            const buttonEl = document.getElementById('random-box-manager-btn');
+            if (!statusEl || !buttonEl) return;
+
+            if (boxProduct) {
+                const activeLabel = boxProduct.is_active === false ? '비활성' : '활성';
+                statusEl.textContent = `${boxProduct.name} · ${boxProduct.price}p · 재고 ${boxProduct.stock ?? '무제한'}개 · ${activeLabel}`;
+                buttonEl.textContent = '랜덤박스 설정';
+            } else {
+                statusEl.textContent = '아직 랜덤박스 상품이 없습니다. 새 랜덤박스를 만들어주세요.';
+                buttonEl.textContent = '랜덤박스 만들기';
+            }
+        }
+
+        function openRandomBoxManager() {
+            const product = findRandomBoxProduct();
+            currentRandomBoxId = product ? String(product.id) : null;
+            const existingRewards = product ? parseRandomBoxRewards(product) : [];
+            const existingMap = new Map(existingRewards.map(reward => [reward.item_id, reward.probability]));
+            const candidates = allProductsCache.filter(item =>
+                String(item.id) !== String(currentRandomBoxId) && parseRandomBoxRewards(item).length === 0
+            );
+
+            document.getElementById('random-box-config-title').textContent = product ? '🎲 랜덤박스 설정' : '🎲 랜덤박스 만들기';
+            document.getElementById('random-box-name').value = product?.name || '랜덤박스';
+            document.getElementById('random-box-price').value = product?.price ?? '';
+            document.getElementById('random-box-stock').value = product?.stock ?? '';
+            document.getElementById('random-box-active').checked = product ? product.is_active !== false : true;
+            document.getElementById('random-box-clear-btn').classList.toggle('hidden', !product);
+            document.getElementById('random-box-reward-list').innerHTML = candidates.length > 0 ? candidates.map(item => {
+                const itemId = String(item.id);
+                const probability = existingMap.get(itemId) ?? '';
+                const checked = existingMap.has(itemId);
+                const hasStock = item.stock === null || Number(item.stock) > 0;
+                const rewardStatus = !hasStock
+                    ? '재고 0 · 선택 전 재고 보충 필요'
+                    : item.is_active === false
+                        ? `비활성 · 랜덤박스 전용 선택 가능 · 재고 ${item.stock ?? '무제한'}개`
+                        : `활성 · 재고 ${item.stock ?? '무제한'}개`;
+                const thumb = item.image_url
+                    ? `<img src="${item.image_url}" class="h-11 w-11 flex-shrink-0 rounded-lg border bg-white object-contain p-0.5">`
+                    : `<div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border bg-white text-lg">🎁</div>`;
+
+                return `
+                    <label class="flex items-center gap-3 rounded-xl border ${checked ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-white'} p-3">
+                        <input type="checkbox" data-random-reward-check data-item-id="${itemId}" ${checked ? 'checked' : ''} onchange="toggleRandomRewardInput('${itemId}', this.checked)" class="h-5 w-5 flex-shrink-0 accent-purple-600">
+                        ${thumb}
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate font-black text-slate-800">${escapeHtml(item.name)}</p>
+                            <p class="text-xs font-bold ${hasStock ? (item.is_active === false ? 'text-purple-600' : 'text-emerald-600') : 'text-red-500'}">${rewardStatus}</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <input id="random-prob-${itemId}" type="number" min="0.01" max="100" step="0.01" value="${probability}" ${checked ? '' : 'disabled'} oninput="updateRandomBoxProbabilityTotal()" class="w-20 rounded-lg border p-2 text-right text-sm font-black text-purple-700 disabled:bg-slate-100 disabled:text-slate-300">
+                            <span class="text-sm font-black text-slate-500">%</span>
+                        </div>
+                    </label>
+                `;
+            }).join('') : `<div class="rounded-xl border border-dashed p-6 text-center font-bold text-slate-400">랜덤박스에 포함할 다른 상품이 없습니다.</div>`;
+
+            updateRandomBoxProbabilityTotal();
+            document.getElementById('random-box-config-modal').classList.remove('hidden');
+        }
+
+        function closeRandomBoxModal() {
+            const modal = document.getElementById('random-box-config-modal');
+            if (modal) modal.classList.add('hidden');
+            currentRandomBoxId = null;
+        }
+
+        function toggleRandomRewardInput(itemId, checked) {
+            const input = document.getElementById(`random-prob-${itemId}`);
+            if (!input) return;
+            input.disabled = !checked;
+            if (checked && !input.value) input.value = '0';
+            updateRandomBoxProbabilityTotal();
+        }
+
+        function updateRandomBoxProbabilityTotal() {
+            const total = Array.from(document.querySelectorAll('[data-random-reward-check]:checked')).reduce((sum, checkbox) => {
+                const input = document.getElementById(`random-prob-${checkbox.dataset.itemId}`);
+                return sum + Number(input?.value || 0);
+            }, 0);
+            const totalEl = document.getElementById('random-box-probability-total');
+            if (!totalEl) return;
+            totalEl.textContent = `${formatProbability(total)}%`;
+            const isComplete = Math.abs(total - 100) < 0.001;
+            totalEl.className = `rounded-full px-3 py-1 text-sm font-black ${isComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`;
+        }
+
+        async function saveRandomBoxConfig() {
+            const name = document.getElementById('random-box-name').value.trim();
+            const price = Number(document.getElementById('random-box-price').value);
+            const stock = Number(document.getElementById('random-box-stock').value);
+            const requestedActive = document.getElementById('random-box-active').checked;
+            if (!name) return showToast("랜덤박스 상품명을 입력해주세요.", "bg-red-500");
+            if (!Number.isFinite(price) || price < 0) return showToast("올바른 랜덤박스 가격을 입력해주세요.", "bg-red-500");
+            if (!Number.isInteger(stock) || stock < 0) return showToast("랜덤박스 재고를 0 이상의 정수로 입력해주세요.", "bg-red-500");
+
+            const selectedRewards = Array.from(document.querySelectorAll('[data-random-reward-check]:checked')).map(checkbox => {
+                const itemId = String(checkbox.dataset.itemId);
+                const input = document.getElementById(`random-prob-${itemId}`);
+                return { item_id: itemId, probability: Number(input?.value || 0) };
+            });
+
+            if (selectedRewards.length < 2) return showToast("당첨 상품을 2개 이상 선택해주세요.", "bg-red-500");
+            if (selectedRewards.some(reward => !Number.isFinite(reward.probability) || reward.probability <= 0)) {
+                return showToast("선택한 모든 상품의 확률을 0보다 크게 입력해주세요.", "bg-red-500");
+            }
+            const unavailableReward = selectedRewards.find(reward => {
+                const item = allProductsCache.find(product => String(product.id) === reward.item_id);
+                return !item || (item.stock !== null && Number(item.stock) <= 0);
+            });
+            if (unavailableReward) return showToast("재고가 0인 상품은 당첨 상품으로 저장할 수 없습니다.", "bg-red-500");
+
+            const total = selectedRewards.reduce((sum, reward) => sum + reward.probability, 0);
+            if (Math.abs(total - 100) >= 0.001) return showToast("확률 합계를 정확히 100%로 맞춰주세요.", "bg-red-500");
+
+            let savedId = currentRandomBoxId;
+            let saveError = null;
+            const existingBox = savedId ? allProductsCache.find(item => String(item.id) === String(savedId)) : null;
+            const startsNewCycle = Boolean(existingBox && parseRandomBoxRewards(existingBox).length > 0 && existingBox.is_active === false && requestedActive && stock > 0);
+            const boxPayload = {
+                name,
+                price,
+                stock,
+                is_active: stock > 0 && requestedActive,
+                random_box_rewards: selectedRewards,
+                random_box_cycle: startsNewCycle ? Number(existingBox.random_box_cycle || 1) + 1 : Number(existingBox?.random_box_cycle || 1)
+            };
+
+            if (savedId) {
+                const { error } = await sb.from('items_point').update(boxPayload).eq('id', savedId);
+                saveError = error;
+            } else {
+                const nextOrder = allProductsCache.reduce((max, item) => Math.max(max, Number(item.display_order || 0)), 0) + 1;
+                const { data, error } = await sb.from('items_point').insert([{ ...boxPayload, display_order: nextOrder }]).select('id').single();
+                saveError = error;
+                savedId = data?.id ? String(data.id) : null;
+            }
+
+            const error = saveError;
+            if (error) {
+                console.error('랜덤박스 설정 저장 실패:', error);
+                alert("랜덤박스 설정을 저장하지 못했습니다. 함께 제공된 Supabase 설정 SQL을 먼저 실행했는지 확인해주세요.");
+                return;
+            }
+
+            if (savedId) {
+                const { error: cleanupError } = await sb.from('items_point')
+                    .update({ random_box_rewards: null })
+                    .neq('id', savedId)
+                    .not('random_box_rewards', 'is', null);
+                if (cleanupError) console.error('기존 랜덤박스 설정 정리 실패:', cleanupError);
+            }
+
+            closeRandomBoxModal();
+            await loadAdminData();
+            showToast(`${name} 상품과 당첨 설정이 저장되었습니다.`, "bg-purple-600");
+        }
+
+        async function clearRandomBoxConfig() {
+            if (!currentRandomBoxId || !confirm("랜덤박스 상품과 설정을 삭제하시겠습니까? 당첨 후보 상품은 삭제되지 않습니다.")) return;
+            const { error } = await sb.from('items_point').delete().eq('id', currentRandomBoxId);
+            if (error) return showToast("랜덤박스 상품 삭제에 실패했습니다.", "bg-red-500");
+
+            closeRandomBoxModal();
+            await loadAdminData();
+            showToast("랜덤박스 상품이 삭제되었습니다.", "bg-slate-600");
         }
 
         // 이미지 비동기 처리 핵심 스크립트 (디스코드 전송 및 데이터베이스 상호 연결)
@@ -1060,21 +1607,26 @@ const miniThumb = p.image_url
         }
 
         async function toggleProductActive(id, checked) {
+            const product = allProductsCache.find(p => String(p.id) === String(id));
             if (checked) {
-                const product = allProductsCache.find(p => String(p.id) === String(id));
                 if (product && product.stock !== null && Number(product.stock) <= 0) {
                     showToast("재고가 0인 상품은 활성화할 수 없습니다.", "bg-red-500");
                     loadAdminData();
                     return;
                 }
             }
-            const { error } = await sb.from('items_point').update({ is_active: checked }).eq('id', id);
+            const startsNewRandomBoxCycle = Boolean(checked && product?.is_active === false && parseRandomBoxRewards(product).length > 0);
+            const activeUpdate = { is_active: checked };
+            if (startsNewRandomBoxCycle) {
+                activeUpdate.random_box_cycle = Number(product.random_box_cycle || 1) + 1;
+            }
+            const { error } = await sb.from('items_point').update(activeUpdate).eq('id', id);
             if (error) {
                 showToast("상태 변경에 실패했습니다.", "bg-red-500");
                 loadAdminData();
                 return;
             }
-            showToast(checked ? "상품이 활성화되었습니다." : "상품이 비활성화되었습니다.", checked ? "bg-green-600" : "bg-gray-600");
+            showToast(startsNewRandomBoxCycle ? "랜덤박스가 새 회차로 활성화되었습니다." : (checked ? "상품이 활성화되었습니다." : "상품이 비활성화되었습니다."), checked ? "bg-green-600" : "bg-gray-600");
             loadAdminData();
         }
 
