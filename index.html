@@ -142,6 +142,39 @@
             </div>
         </div>
 
+        <!-- 한국시간 기준 생일 알림 -->
+        <section aria-labelledby="birthday-alert-title" class="mb-6 overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-r from-pink-50 via-white to-amber-50 p-4 shadow-sm max-md:mb-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-pink-500 text-xl shadow-sm">🎂</div>
+                <div>
+                    <h3 id="birthday-alert-title" class="font-black text-slate-800">생일 알림</h3>
+                    <p id="today-birthday-date" class="text-xs font-semibold text-slate-500">한국시간 기준 날짜를 확인하고 있습니다.</p>
+                </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <div class="rounded-xl border border-pink-200 bg-white/85 p-3">
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                        <h4 class="font-black text-pink-700">🎉 오늘 생일인 학생</h4>
+                        <span id="today-birthday-count" class="rounded-full bg-pink-100 px-2.5 py-1 text-xs font-black text-pink-700">확인 중</span>
+                    </div>
+                    <div id="today-birthday-list" aria-live="polite">
+                        <div class="rounded-lg border border-dashed border-pink-200 p-3 text-sm font-semibold text-slate-400">생일자를 불러오는 중입니다.</div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-amber-200 bg-white/85 p-3">
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                        <h4 class="font-black text-amber-700">📅 곧 생일인 학생</h4>
+                        <span id="upcoming-birthday-count" class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-700">확인 중</span>
+                    </div>
+                    <div id="upcoming-birthday-list" aria-live="polite">
+                        <div class="rounded-lg border border-dashed border-amber-200 p-3 text-sm font-semibold text-slate-400">예정 생일자를 불러오는 중입니다.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <div id="log-view" class="hidden bg-white p-6 rounded-2xl border mb-6 max-md:p-4 max-md:mb-4">
             <div class="flex justify-between items-center mb-4">
                 <h3 id="log-title" class="font-bold text-lg max-md:text-base">로그</h3>
@@ -445,6 +478,92 @@
 
             const priceDiff = Number(b.price || 0) - Number(a.price || 0);
             return priceDiff !== 0 ? priceDiff : String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+        }
+
+        function normalizeBirthday(value) {
+            const digits = String(value ?? '').replace(/\D/g, '');
+            return digits ? digits.slice(-4).padStart(4, '0') : '';
+        }
+
+        function escapeHtml(value) {
+            const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(value ?? '').replace(/[&<>"']/g, char => entities[char]);
+        }
+
+        function renderTodayBirthdays(students) {
+            const dateEl = document.getElementById('today-birthday-date');
+            const countEl = document.getElementById('today-birthday-count');
+            const listEl = document.getElementById('today-birthday-list');
+            const upcomingCountEl = document.getElementById('upcoming-birthday-count');
+            const upcomingListEl = document.getElementById('upcoming-birthday-list');
+            if (!dateEl || !countEl || !listEl || !upcomingCountEl || !upcomingListEl) return;
+
+            const now = new Date();
+            const dateParts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+            }).formatToParts(now);
+            const year = Number(dateParts.find(part => part.type === 'year')?.value || now.getFullYear());
+            const month = dateParts.find(part => part.type === 'month')?.value || String(now.getMonth() + 1).padStart(2, '0');
+            const day = dateParts.find(part => part.type === 'day')?.value || String(now.getDate()).padStart(2, '0');
+            const todayKey = `${month}${day}`;
+            const todayLabel = new Intl.DateTimeFormat('ko-KR', {
+                timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'short'
+            }).format(now);
+
+            const birthdayStudents = (students || []).filter(student => normalizeBirthday(student.birth_date) === todayKey);
+            const upcomingDateMap = new Map();
+            const seoulTodayUtc = Date.UTC(year, Number(month) - 1, Number(day));
+            for (let offset = 1; offset <= 7; offset++) {
+                const futureDate = new Date(seoulTodayUtc + offset * 86400000);
+                const futureMonth = String(futureDate.getUTCMonth() + 1).padStart(2, '0');
+                const futureDay = String(futureDate.getUTCDate()).padStart(2, '0');
+                const dateLabel = new Intl.DateTimeFormat('ko-KR', {
+                    timeZone: 'UTC', month: 'numeric', day: 'numeric', weekday: 'short'
+                }).format(futureDate);
+                upcomingDateMap.set(`${futureMonth}${futureDay}`, { offset, dateLabel });
+            }
+
+            const upcomingStudents = (students || [])
+                .map(student => ({ student, schedule: upcomingDateMap.get(normalizeBirthday(student.birth_date)) }))
+                .filter(item => item.schedule)
+                .sort((a, b) => a.schedule.offset - b.schedule.offset || Number(a.student.grade || 0) - Number(b.student.grade || 0) || String(a.student.name || '').localeCompare(String(b.student.name || ''), 'ko'));
+
+            dateEl.textContent = `${todayLabel} · 한국시간 기준`;
+            countEl.textContent = `${birthdayStudents.length}명`;
+            upcomingCountEl.textContent = `${upcomingStudents.length}명`;
+
+            if (birthdayStudents.length === 0) {
+                listEl.innerHTML = `<div class="rounded-lg border border-dashed border-slate-200 p-3 text-sm font-semibold text-slate-500">오늘 생일인 학생이 없습니다.</div>`;
+            } else {
+                listEl.innerHTML = `
+                    <div class="flex flex-wrap gap-2">
+                        ${birthdayStudents.map(student => `
+                            <div class="flex items-center gap-2 rounded-lg bg-pink-50 px-3 py-2">
+                                <span aria-hidden="true">🎉</span>
+                                <span class="font-black text-slate-800">초${escapeHtml(student.grade)} ${escapeHtml(student.name)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            if (upcomingStudents.length === 0) {
+                upcomingListEl.innerHTML = `<div class="rounded-lg border border-dashed border-slate-200 p-3 text-sm font-semibold text-slate-500">곧 생일인 학생이 없습니다.</div>`;
+            } else {
+                upcomingListEl.innerHTML = `
+                    <div class="space-y-1.5">
+                        ${upcomingStudents.map(({ student, schedule }) => `
+                            <div class="flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2">
+                                <div class="min-w-0">
+                                    <span class="font-black text-slate-800">초${escapeHtml(student.grade)} ${escapeHtml(student.name)}</span>
+                                    <span class="ml-1 text-xs font-bold text-slate-500">${escapeHtml(schedule.dateLabel)}</span>
+                                </div>
+                                <span class="flex-shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-black text-amber-800">D-${schedule.offset}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
         }
 
         // 학생용 상점 리스트 바인딩 (가격 높은 순 자동 정렬)
@@ -773,6 +892,7 @@
             allStudentsCache = students || []; 
             const syncedProducts = await syncOutOfStockProducts(products || []); 
             allProductsCache = syncedProducts.sort(compareProductsForDisplay); 
+            renderTodayBirthdays(allStudentsCache);
             
             filterStudents(); 
             filterProducts(); 
