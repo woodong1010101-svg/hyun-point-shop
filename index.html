@@ -137,7 +137,7 @@
                 <button id="admin-staff-btn" onclick="openStaffModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-colors max-md:px-2 max-md:py-1.5 max-md:text-xs">선생님 관리</button>
                 <button onclick="showLogs('point_logs')" class="mobile-hide bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">포인트 지급로그</button>
                 <button onclick="renderPurchaseLogTabs('미지급')" class="mobile-hide bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">상품 구매로그</button>
-                <button onclick="runUpgrade()" class="mobile-hide bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">학년 진급</button>
+                <button id="admin-upgrade-btn" onclick="runUpgrade()" class="hidden mobile-hide bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer">학년 진급</button>
                 <button onclick="location.reload()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm cursor-pointer max-md:px-2 max-md:py-1.5 max-md:text-xs">학생 화면</button>
             </div>
         </div>
@@ -186,9 +186,12 @@
         </button>
     </div>
 
-    <!-- 검색 바 -->
-    <div class="mb-4">
-        <input id="prod-search" oninput="filterProducts()" placeholder="🔍 검색할 상품명을 입력하세요..." class="w-full p-3 md:p-2.5 border rounded-xl text-sm max-md:text-base bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-300 outline-none transition-all">
+    <!-- 검색 및 가격순 정렬 -->
+    <div class="mb-4 flex flex-col sm:flex-row gap-2">
+        <input id="prod-search" oninput="filterProducts()" placeholder="🔍 검색할 상품명을 입력하세요..." class="flex-1 p-3 md:p-2.5 border rounded-xl text-sm max-md:text-base bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-300 outline-none transition-all">
+        <button id="auto-sort-products-btn" onclick="autoSortProductsByPrice()" class="w-full sm:w-auto px-4 py-3 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-xl font-bold text-sm cursor-pointer disabled:cursor-wait transition-colors shadow-xs">
+            ↓ 높은 가격순 자동정렬
+        </button>
     </div>
 
     <!-- 상품 리스트 영역 -->
@@ -201,7 +204,7 @@
                 <button onclick="showLogs('point_logs')" class="w-full p-4 bg-green-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-green-700">📈 포인트 지급로그 열기</button>
                 <button onclick="renderPurchaseLogTabs('미지급')" class="w-full p-4 bg-purple-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-purple-700">🛒 상품 구매로그 (지급 처리)</button>
                 <div class="border-t my-2"></div>
-                <button onclick="runUpgrade()" class="w-full p-4 bg-yellow-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-yellow-700">🎓 전원 학년 진급 (정기 처리)</button>
+                <button id="mobile-upgrade-btn" onclick="runUpgrade()" class="hidden w-full p-4 bg-yellow-600 text-white font-bold rounded-2xl text-left shadow-xs active:bg-yellow-700">🎓 전원 학년 진급 (정기 처리)</button>
             </div>
         </div>
     </div>
@@ -418,13 +421,40 @@
             }
         }
 
-        // 학생용 상점 리스트 바인딩 (이미지 컬럼 레이아웃 전면 최적화)
+        // 재고가 0인 기존 상품도 불러오는 즉시 비활성 상태로 동기화
+        async function syncOutOfStockProducts(products) {
+            const outOfStockIds = (products || [])
+                .filter(p => p.stock !== null && Number(p.stock) <= 0 && p.is_active !== false)
+                .map(p => p.id);
+
+            if (outOfStockIds.length === 0) return products || [];
+
+            const { error } = await sb.from('items_point').update({ is_active: false }).in('id', outOfStockIds);
+            if (error) {
+                console.error('재고 0 상품 자동 비활성화 실패:', error);
+                return products || [];
+            }
+
+            return (products || []).map(p => outOfStockIds.includes(p.id) ? { ...p, is_active: false } : p);
+        }
+
+        // 활성 상품을 먼저, 같은 상태에서는 가격이 높은 상품을 먼저 배치
+        function compareProductsForDisplay(a, b) {
+            const activeDiff = Number(b.is_active !== false) - Number(a.is_active !== false);
+            if (activeDiff !== 0) return activeDiff;
+
+            const priceDiff = Number(b.price || 0) - Number(a.price || 0);
+            return priceDiff !== 0 ? priceDiff : String(a.name || '').localeCompare(String(b.name || ''), 'ko');
+        }
+
+        // 학생용 상점 리스트 바인딩 (가격 높은 순 자동 정렬)
         async function loadShop() {
-            const { data } = await sb.from('items_point').select('*').eq('is_active', true).order('display_order', { ascending: true });
-            globalProductsCache = data || [];
+            const { data } = await sb.from('items_point').select('*').eq('is_active', true).order('price', { ascending: false }).order('name', { ascending: true });
+            const syncedProducts = await syncOutOfStockProducts(data || []);
+            globalProductsCache = syncedProducts.filter(p => p.is_active !== false && !(p.stock !== null && Number(p.stock) <= 0));
             
             document.getElementById('product-list').innerHTML = globalProductsCache.map(p => {
-                const isSoldOut = p.stock !== null && p.stock <= 0;
+                const isSoldOut = p.stock !== null && Number(p.stock) <= 0;
                 // 이미지가 없을 때 처리할 기본 대체 아이콘/배경
                 const imgTag = p.image_url 
     ? `<img src="${p.image_url}" class="w-full h-32 object-contain bg-white rounded-xl mb-3 p-1 shadow-xs">`
@@ -522,7 +552,10 @@
             for (let cartItem of cart) {
                 const dbItem = currentItems.find(x => x.name === cartItem.name);
                 if (dbItem && dbItem.stock !== null) {
-                    await sb.from('items_point').update({ stock: dbItem.stock - cartItem.qty }).eq('name', cartItem.name);
+                    const remainingStock = Math.max(0, Number(dbItem.stock) - cartItem.qty);
+                    const stockUpdate = { stock: remainingStock };
+                    if (remainingStock === 0) stockUpdate.is_active = false;
+                    await sb.from('items_point').update(stockUpdate).eq('name', cartItem.name);
                 }
             }
 
@@ -572,6 +605,18 @@
             if (event.key === 'Enter') submitAdminLogin();
         }
 
+        function hasUpgradePermission(admin = currentAdmin) {
+            return Boolean(admin && (admin.role_perm === '관리자 등급' || admin.role_perm === '최고 관리자 등급'));
+        }
+
+        function updateUpgradeButtonVisibility(admin = currentAdmin) {
+            const canUpgrade = hasUpgradePermission(admin);
+            ['admin-upgrade-btn', 'mobile-upgrade-btn'].forEach(id => {
+                const button = document.getElementById(id);
+                if (button) button.classList.toggle('hidden', !canUpgrade);
+            });
+        }
+
         async function submitAdminLogin() {
             const id = document.getElementById('admin-id-input').value.trim();
             const pw = document.getElementById('admin-pw-input').value.trim();
@@ -598,6 +643,7 @@
                         staffBtn.classList.remove('hidden');
                     }
                 }
+                updateUpgradeButtonVisibility(data);
                 showToast(`${data.admin_name} 선생님, 인증 성공!`, "bg-purple-600");
                 loadAdminData();
             } else {
@@ -722,10 +768,11 @@
 
         async function loadAdminData() { 
             const { data: students } = await sb.from('students_point').select('*').order('grade', { ascending: true }).order('name', { ascending: true }); 
-            const { data: products } = await sb.from('items_point').select('*').order('display_order', { ascending: true }); 
+            const { data: products } = await sb.from('items_point').select('*').order('is_active', { ascending: false }).order('price', { ascending: false }).order('name', { ascending: true }); 
             
             allStudentsCache = students || []; 
-            allProductsCache = products || []; 
+            const syncedProducts = await syncOutOfStockProducts(products || []); 
+            allProductsCache = syncedProducts.sort(compareProductsForDisplay); 
             
             filterStudents(); 
             filterProducts(); 
@@ -748,7 +795,6 @@
                 const isActive = p.is_active !== false; 
                 const statusClass = isActive ? 'bg-white border-slate-200' : 'bg-slate-200 border-slate-300 opacity-50';
                 const currentStock = p.stock !== null ? p.stock : 0;
-                const showOrderBtns = query === ''; 
 
                 // 미니 썸네일 미리보기 컴포넌트
 const miniThumb = p.image_url 
@@ -778,10 +824,6 @@ const miniThumb = p.image_url
                         <input type="file" id="file-input-${p.id}" accept="image/*" class="hidden" onchange="updateProductImage('${p.id}', this)">
                         <button onclick="document.getElementById('file-input-${p.id}').click()" id="btn-img-${p.id}" class="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1.5 rounded-xl font-bold text-xs hover:bg-blue-100 cursor-pointer transition-all">📁 사진</button>
                         
-                        ${showOrderBtns ? `
-                            <button onclick="moveOrder(${idx}, -1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer shadow-xs">▲</button>
-                            <button onclick="moveOrder(${idx}, 1)" class="bg-gray-100 p-2 text-xs rounded-lg font-bold hover:bg-gray-200 cursor-pointer shadow-xs">▼</button>
-                        ` : ''}
                         <button onclick="confirmDel('items_point', '${p.name}')" class='text-red-500 font-bold text-xs bg-red-50 px-2 py-1.5 rounded-xl hover:bg-red-100 cursor-pointer'>제거</button>
                     </div>
                 </div>
@@ -880,20 +922,32 @@ const miniThumb = p.image_url
 
             showToast("상품 가격이 수정되었습니다.", "bg-indigo-600");
             await loadAdminData();
+            await loadShop();
         }
 
         async function updateProductStock(id, newStock) {
             const stockNum = parseInt(newStock);
             if (isNaN(stockNum) || stockNum < 0) return alert("올바른 재고 수량을 입력해주세요.");
             
-            const { error } = await sb.from('items_point').update({ stock: stockNum }).eq('id', id);
+            const stockUpdate = { stock: stockNum };
+            if (stockNum === 0) stockUpdate.is_active = false;
+            const { error } = await sb.from('items_point').update(stockUpdate).eq('id', id);
             if (error) return showToast("재고 변경 실패", "bg-red-500");
             
-            showToast("재고 수량이 수정되었습니다.", "bg-indigo-600");
+            showToast(stockNum === 0 ? "재고가 0이 되어 상품이 비활성화되었습니다." : "재고 수량이 수정되었습니다.", stockNum === 0 ? "bg-gray-600" : "bg-indigo-600");
             await loadAdminData();
+            await loadShop();
         }
 
         async function toggleProductActive(id, checked) {
+            if (checked) {
+                const product = allProductsCache.find(p => String(p.id) === String(id));
+                if (product && product.stock !== null && Number(product.stock) <= 0) {
+                    showToast("재고가 0인 상품은 활성화할 수 없습니다.", "bg-red-500");
+                    loadAdminData();
+                    return;
+                }
+            }
             const { error } = await sb.from('items_point').update({ is_active: checked }).eq('id', id);
             if (error) {
                 showToast("상태 변경에 실패했습니다.", "bg-red-500");
@@ -1091,6 +1145,42 @@ const miniThumb = p.image_url
             loadAdminData(); 
         }
 
+        // 가격이 높은 순으로 display_order를 다시 저장하는 수동 안전장치
+        async function autoSortProductsByPrice() {
+            const btn = document.getElementById('auto-sort-products-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = '정렬 중...';
+            }
+
+            try {
+                const { data: products, error } = await sb.from('items_point').select('id, name, price, stock, is_active');
+                if (error) throw error;
+
+                const syncedProducts = await syncOutOfStockProducts(products || []);
+                const sortedProducts = syncedProducts.sort(compareProductsForDisplay);
+
+                for (let index = 0; index < sortedProducts.length; index++) {
+                    const { error: updateError } = await sb.from('items_point')
+                        .update({ display_order: index + 1 })
+                        .eq('id', sortedProducts[index].id);
+                    if (updateError) throw updateError;
+                }
+
+                await loadAdminData();
+                await loadShop();
+                showToast("활성 상품 우선, 높은 가격순으로 정렬되었습니다.", "bg-green-600");
+            } catch (error) {
+                console.error('가격순 자동정렬 실패:', error);
+                showToast("가격순 정렬에 실패했습니다.", "bg-red-500");
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = '↓ 높은 가격순 자동정렬';
+                }
+            }
+        }
+
         async function confirmDel(table, key) { 
             if (confirm("정말 제거하시겠습니까?")) { 
                 await sb.from(table).delete().eq(table === 'students_point' ? 'code' : 'name', key); 
@@ -1120,7 +1210,8 @@ const miniThumb = p.image_url
             const { data } = await sb.from('items_point').select('display_order').order('display_order', {ascending: false}).limit(1);
             const nextOrder = data && data.length > 0 ? data[0].display_order + 1 : 1;
 
-            await sb.from('items_point').insert([{ name, price: parseInt(price), stock: parseInt(stock), display_order: nextOrder, is_active: true }]);
+            const stockNum = parseInt(stock);
+            await sb.from('items_point').insert([{ name, price: parseInt(price), stock: stockNum, display_order: nextOrder, is_active: stockNum > 0 }]);
             document.getElementById('prod-name').value = '';
             document.getElementById('prod-price').value = '';
             document.getElementById('prod-stock').value = '';
@@ -1129,6 +1220,9 @@ const miniThumb = p.image_url
         }
 
         async function runUpgrade() { 
+            if (!hasUpgradePermission()) {
+                return showToast("학년 진급 권한이 없습니다.", "bg-red-500");
+            }
             if (confirm("진급하시겠습니까? 모든 학생의 학년이 1씩 증가합니다.")) { 
                 await sb.rpc('increment_grades'); 
                 loadAdminData(); 
